@@ -145,6 +145,10 @@ cd apps/mobile && flutter test       # formatting, model parsing, review screen 
 cd apps/admin && npx tsc --noEmit    # type-check the admin portal
 ```
 
+GitHub Actions (`.github/workflows/ci.yml`) runs the same checks on every pull request
+and on pushes to `master`: API type-check, tests, build, migrations (up/down/up)
+and seed against a PostGIS service; admin type-check and build; Flutter analyze and test.
+
 ## Not in phase 1
 
 Document upload (the license is a URL for now), real providers, push

@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (NestJS + PostGIS)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: tourguide
+          POSTGRES_PASSWORD: tourguide
+          POSTGRES_DB: tourguide
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tourguide -d tourguide"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://tourguide:tourguide@localhost:5432/tourguide
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type-check
+        run: npm run lint -w services/api
+      - name: Unit tests
+        run: npm test -w services/api -- --ci
+      - name: Build
+        run: npm run build -w services/api
+      - name: Migrations (up, down, up)
+        run: |
+          npm run migration:run -w services/api
+          npm run migration:revert -w services/api
+          npm run migration:run -w services/api
+      - name: Seed
+        run: npm run seed -w services/api
+
+  admin:
+    name: Admin (Next.js)
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type-check
+        run: npm run lint -w apps/admin
+      - name: Build
+        run: npm run build -w apps/admin
+
+  mobile:
+    name: Mobile (Flutter)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Tests
+        run: flutter test
