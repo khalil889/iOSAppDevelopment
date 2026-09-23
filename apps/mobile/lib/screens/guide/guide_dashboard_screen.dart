@@ -119,7 +119,7 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
       _ => (scheme.primary, Icons.badge_outlined, 'Submit your license', 'Add your tourism license to get verified and start receiving bookings.'),
     };
     return Card(
-      color: color.withValues(alpha: 0.08),
+      color: Color.alphaBlend(color.withValues(alpha: 0.10), scheme.surface),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
