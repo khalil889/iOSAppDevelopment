@@ -48,15 +48,26 @@ export class AssistantService {
     return { ...reply, city: context.city };
   }
 
-  /** Explicit cityId wins; otherwise look for a known city name in the conversation. */
+  /**
+   * Explicit cityId wins; otherwise look for a known city — or one of its
+   * sites — mentioned in the conversation (most recent message first).
+   */
   private async resolveCity(dto: ChatDto): Promise<City | null> {
     if (dto.cityId) return this.cities.findOne({ where: { id: dto.cityId }, relations: { country: true } });
-    const text = dto.messages.filter((m) => m.role === 'user').map((m) => m.content.toLowerCase()).reverse().join(' \n ');
-    const all = await this.cities.find({ relations: { country: true } });
+    const text = dto.messages
+      .filter((m) => m.role === 'user')
+      .map((m) => m.content.toLowerCase())
+      .reverse()
+      .join(' \n ');
+    const all = await this.cities.find({ relations: { country: true, sites: true } });
     let best: { city: City; idx: number } | null = null;
     for (const c of all) {
-      const idx = text.indexOf(c.name.toLowerCase());
-      if (idx >= 0 && (!best || idx < best.idx)) best = { city: c, idx };
+      // "Petra — Al-Khazneh (Treasury)" -> "petra"
+      const keywords = [c.name, ...c.sites.map((s) => s.name.split(/ — | \(/)[0])].map((k) => k.toLowerCase());
+      for (const k of keywords) {
+        const idx = text.indexOf(k);
+        if (idx >= 0 && (!best || idx < best.idx)) best = { city: c, idx };
+      }
     }
     return best?.city ?? null;
   }
