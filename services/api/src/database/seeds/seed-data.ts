@@ -124,7 +124,7 @@ export const GUIDES: GuideSeed[] = [
     bio: 'Bedouin-born Petra guide. I will take you beyond the Treasury to the Monastery.',
     cities: ['petra', 'amman'], sites: ['treasury', 'monastery', 'citadel'],
     packages: [
-      { title: 'Petra Full Day: Siq to Monastery', city: 'petra', description: 'The Siq, Treasury, Street of Facades and the Monastery climb.', durationMinutes: 420, pricingType: PricingType.PER_GROUP, priceMinor: 9000, maxGroupSize: 8, sites: ['treasury', 'monastery'] },
+      { title: 'Petra Full Day: Siq to Monastery', city: 'petra', description: 'The Siq, Treasury, Street of Facades and the Monastery climb.', durationMinutes: 420, pricingType: PricingType.PER_GROUP, priceMinor: 90000, maxGroupSize: 8, sites: ['treasury', 'monastery'] },
     ],
   },
   {
