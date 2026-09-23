@@ -5,7 +5,6 @@ import { geoPoint } from '../common/base.entity';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { BookingStatus, DisputeStatus, UserRole } from '../common/enums';
 import { DomainError } from '../common/errors/domain-error';
-import { Paginated } from '../common/pagination';
 import { Dispute } from '../disputes/dispute.entity';
 import { Guide } from '../guides/guide.entity';
 import { GuidesService } from '../guides/guides.service';
@@ -181,7 +180,7 @@ export class BookingsService {
   }
 
   // ------------------------------------------------------------- queries
-  async list(user: AuthUser, q: BookingListQuery): Promise<Paginated<Booking>> {
+  async list(user: AuthUser, q: BookingListQuery) {
     const qb = this.db
       .getRepository(Booking)
       .createQueryBuilder('b')
@@ -197,7 +196,24 @@ export class BookingsService {
     else if (user.role === UserRole.GUIDE) qb.where('b.guideId = :gid', { gid: await this.guides.findIdByUserId(user.id) });
     if (q.status) qb.andWhere('b.status = :status', { status: q.status });
 
-    const [items, total] = await qb.skip((q.page - 1) * q.limit).take(q.limit).getManyAndCount();
+    const [bookings, total] = await qb.skip((q.page - 1) * q.limit).take(q.limit).getManyAndCount();
+
+    // Attach review / open-dispute markers so clients know which actions apply.
+    const ids = bookings.map((b) => b.id);
+    const [reviews, disputes] = ids.length
+      ? await Promise.all([
+          this.db.getRepository(Review).find({ where: { bookingId: In(ids) }, select: { id: true, bookingId: true, rating: true } }),
+          this.db.getRepository(Dispute).find({
+            where: { bookingId: In(ids), status: DisputeStatus.OPEN },
+            select: { id: true, bookingId: true, status: true },
+          }),
+        ])
+      : [[], []];
+    const items = bookings.map((b) => ({
+      ...b,
+      review: reviews.find((r) => r.bookingId === b.id) ?? null,
+      openDispute: disputes.find((d) => d.bookingId === b.id) ?? null,
+    }));
     return { items, total, page: q.page, limit: q.limit };
   }
 
