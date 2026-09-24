@@ -79,13 +79,26 @@ class _BookingScreenState extends State<BookingScreen> {
     try {
       final booking = await repo.createBooking(pkg.id, _startAt, _group, notes: _notes.text.trim());
       if (!mounted) return;
-      final token = await sheet.collect(context, amountLabel: formatMoney(booking.totalMinor, booking.currency));
+      final token = await sheet.collect(
+        context,
+        PaymentRequest(
+          bookingId: booking.id,
+          amountMinor: booking.totalMinor,
+          currency: booking.currency,
+          description: '${pkg.title} with ${widget.guide.name}',
+        ),
+      );
       if (token == null) {
         if (mounted) showMessage(context, 'Booking held for 15 minutes — pay from Trips to confirm.');
         return;
       }
       final paid = await repo.pay(booking.id, token);
       if (!mounted) return;
+      if (paid.status == BookingStatus.pendingPayment) {
+        showMessage(context, "We're still verifying your payment — check Trips in a moment.");
+        Navigator.of(context).popUntil((r) => r.isFirst);
+        return;
+      }
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
