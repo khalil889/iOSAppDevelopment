@@ -5,7 +5,8 @@ export interface AppConfig {
   jwt: { secret: string; expiresIn: string };
   corsOrigins: string[];
   otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean };
-  providers: { sms: string; payment: string; kyc: string; ai: string; storage: string };
+  providers: { sms: string; payment: string; kyc: string; ai: string; storage: string; push: string };
+  firebase: { serviceAccount: string };
   publicApiUrl: string;
   /** E.164 numbers texted on every SOS alert. */
   opsAlertPhones: string[];
@@ -67,7 +68,9 @@ export default (): AppConfig => ({
     kyc: process.env.KYC_PROVIDER ?? 'stub',
     ai: process.env.AI_PROVIDER ?? 'stub',
     storage: process.env.STORAGE_PROVIDER ?? 'local',
+    push: process.env.PUSH_PROVIDER ?? 'stub',
   },
+  firebase: { serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT ?? '' },
   publicApiUrl: (process.env.PUBLIC_API_URL ?? `http://localhost:${int(process.env.PORT, 3000)}`).replace(/\/$/, ''),
   opsAlertPhones: (process.env.OPS_ALERT_PHONES ?? '').split(',').map((p) => p.trim()).filter(Boolean),
   storage: { uploadDir: process.env.UPLOAD_DIR ?? 'uploads' },

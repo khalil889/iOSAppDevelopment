@@ -113,3 +113,48 @@ describe('availability and booking', () => {
     expect(inside.body.totalMinor).toBeGreaterThan(0);
   });
 });
+
+describe('notifications', () => {
+  it('registers a device, notifies both sides of a paid booking, and marks read', async () => {
+    const tourist = await login('lucas@example.com');
+    const guide = await login('noura@guides.test');
+    const reg = await call('POST', '/me/devices', { token: 'fcm-token-e2e-0123456789abcdef', platform: 'android' }, guide);
+    expect(reg.body).toEqual({ registered: true });
+
+    const guides = await call('GET', '/guides?q=Noura');
+    const profile = await call('GET', `/guides/${guides.body.items[0].id}`);
+    const pkg = profile.body.packages[0];
+    const slots = await call('GET', `/availability/slots?packageId=${pkg.id}&date=${nextWeekday(2)}`);
+    const booking = await call('POST', '/bookings', { packageId: pkg.id, startAt: slots.body.slots[2].startAt, groupSize: 1 }, tourist);
+    expect(booking.status).toBe(201);
+    const paid = await call('POST', `/bookings/${booking.body.id}/pay`, { paymentMethodToken: 'tok_ok' }, tourist);
+    expect(paid.body.booking.status).toBe('CONFIRMED');
+
+    const guideInbox = await call('GET', '/me/notifications', undefined, guide);
+    expect(guideInbox.body.items[0]).toMatchObject({ type: 'NEW_BOOKING', title: 'New booking', data: { bookingId: booking.body.id } });
+    expect(guideInbox.body.unread).toBeGreaterThan(0);
+    const touristInbox = await call('GET', '/me/notifications', undefined, tourist);
+    expect(touristInbox.body.items[0]).toMatchObject({ type: 'BOOKING_CONFIRMED' });
+    expect(touristInbox.body.items[0].body).toMatch(/Noura/);
+
+    // Cancelling notifies the guide
+    await call('POST', `/bookings/${booking.body.id}/cancel`, { reason: 'e2e' }, tourist);
+    const after = await call('GET', '/me/notifications', undefined, guide);
+    expect(after.body.items[0].type).toBe('BOOKING_CANCELLED');
+
+    const read = await call('POST', '/me/notifications/read', {}, guide);
+    expect(read.body.updated).toBeGreaterThan(0);
+    expect((await call('GET', '/me/notifications', undefined, guide)).body.unread).toBe(0);
+    await call('POST', '/me/devices/unregister', { token: 'fcm-token-e2e-0123456789abcdef' }, guide);
+  });
+
+  it('sends a review reminder once for a tour completed yesterday', async () => {
+    const { NotificationsService } = await import('../src/notifications/notifications.service');
+    const svc = app.get(NotificationsService);
+    await svc.sendReviewReminders(); // Sara's AlUla tour from the seed qualifies
+    expect(await svc.sendReviewReminders()).toBe(0); // never twice
+    const sara = await login('sara@example.com');
+    const inbox = await call('GET', '/me/notifications', undefined, sara);
+    expect(inbox.body.items.some((n: { type: string }) => n.type === 'REVIEW_REMINDER')).toBe(true);
+  });
+});

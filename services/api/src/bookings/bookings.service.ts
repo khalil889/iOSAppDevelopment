@@ -29,6 +29,7 @@ import {
 import { BookingListQuery, CancelBookingDto, CreateBookingDto, SosDto } from './dto';
 import { SosAlert } from './sos-alert.entity';
 import { SosNotifier } from './sos-notifier';
+import { BookingNotifier } from '../notifications/booking-notifier';
 
 @Injectable()
 export class BookingsService {
@@ -41,6 +42,7 @@ export class BookingsService {
     private readonly payments: PaymentsService,
     private readonly availability: AvailabilityService,
     private readonly sosNotifier: SosNotifier,
+    private readonly notify: BookingNotifier,
   ) {}
 
   private get feePercent() {
@@ -158,9 +160,11 @@ export class BookingsService {
     if (booking.paymentDueAt && booking.paymentDueAt <= now) {
       await this.settleLatePayment(booking, now);
     }
-    await this.db
+    const res = await this.db
       .getRepository(Booking)
       .update({ id: booking.id, status: BookingStatus.PENDING_PAYMENT }, { status: BookingStatus.CONFIRMED, paymentDueAt: null });
+    // Only the call that actually flipped the status notifies (app + webhook can race).
+    if (res.affected) await this.notify.confirmed(booking.id);
   }
 
   /** Payment arrived after the hold lapsed: keep it if the slot is still free, otherwise refund. */
@@ -190,6 +194,7 @@ export class BookingsService {
     const booking = await this.load(id);
     const to = nextStatus(booking, 'start', await this.actor(user), new Date());
     await this.db.getRepository(Booking).update({ id }, { status: to, startedAt: new Date() });
+    await this.notify.started(id);
     return this.get(user, id);
   }
 
@@ -201,6 +206,7 @@ export class BookingsService {
       await tx.getRepository(Booking).update({ id }, { status: to, completedAt: now });
       await this.payments.scheduleRelease(id, now, tx);
     });
+    await this.notify.completed(id);
     return this.get(user, id);
   }
 
@@ -216,6 +222,7 @@ export class BookingsService {
       { status: to, cancelledAt: now, cancelledById: user.id, cancellationReason: dto.reason ?? null, paymentDueAt: null },
     );
     await this.payments.settle(booking, refundPercent, `Cancelled: ${dto.reason ?? 'no reason given'}`);
+    await this.notify.cancelled(id, isTourist(booking, actor) ? 'tourist' : actor.role === UserRole.ADMIN ? 'admin' : 'guide', refundPercent);
     return { booking: await this.get(user, id), refundPercent };
   }
 
@@ -240,6 +247,7 @@ export class BookingsService {
       where: { id },
       relations: { tourist: true, guide: { user: true }, package: { city: true } },
     });
+    await this.notify.sosRaised(id, isTourist(booking, actor) ? 'tourist' : 'guide');
     const paged = await this.sosNotifier.notifyOps({
       alertId: alert.id,
       raisedBy: isTourist(booking, actor) ? 'tourist' : 'guide',

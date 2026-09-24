@@ -2,12 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, IsNull, Not } from 'typeorm';
 import { SosAlert } from '../bookings/sos-alert.entity';
 import { DomainError } from '../common/errors/domain-error';
+import { BookingNotifier } from '../notifications/booking-notifier';
 
 export type SosFilter = 'open' | 'acknowledged' | 'all';
 
 @Injectable()
 export class AdminSosService {
-  constructor(private readonly db: DataSource) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly notify: BookingNotifier,
+  ) {}
 
   /** Open alerts first, newest first within each group. */
   async list(filter: SosFilter = 'open') {
@@ -45,6 +49,7 @@ export class AdminSosService {
       where: { id },
       relations: { booking: { tourist: true, guide: { user: true }, package: { city: true } } },
     });
+    await this.notify.sosAcknowledged(alert.bookingId, alert.raisedById);
     return present(alert);
   }
 }

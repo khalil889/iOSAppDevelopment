@@ -10,6 +10,7 @@ import { Paginated } from '../common/pagination';
 import { Payment } from '../payments/payment.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { Dispute } from './dispute.entity';
+import { BookingNotifier } from '../notifications/booking-notifier';
 import { assertCanOpenDispute, resolutionRefundPercent } from './dispute.rules';
 import { DisputeListQuery, OpenDisputeDto, ResolveDisputeDto } from './dto';
 
@@ -20,6 +21,7 @@ export class DisputesService {
     private readonly config: ConfigService,
     private readonly bookings: BookingsService,
     private readonly payments: PaymentsService,
+    private readonly notify: BookingNotifier,
   ) {}
 
   async open(user: AuthUser, bookingId: string, dto: OpenDisputeDto) {
@@ -43,6 +45,9 @@ export class DisputesService {
         tx.getRepository(Dispute).create({ bookingId, openedById: user.id, reason: dto.reason, description: dto.description }),
       );
       await this.payments.freeze(bookingId, tx);
+      return dispute;
+    }).then(async (dispute) => {
+      await this.notify.disputeOpened(bookingId, user.id);
       return dispute;
     });
   }
@@ -98,6 +103,7 @@ export class DisputesService {
         resolutionNote: dto.note ?? null,
       },
     );
+    await this.notify.disputeResolved(dispute.bookingId, refundPercent);
     return this.db.getRepository(Dispute).findOne({ where: { id }, relations: { booking: { payment: true } } });
   }
 }

@@ -19,6 +19,7 @@ import { DisputesModule } from './disputes/disputes.module';
 import { GeoModule } from './geo/geo.module';
 import { GuidesModule } from './guides/guides.module';
 import { HealthController } from './health.controller';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PackagesModule } from './packages/packages.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ProvidersModule } from './providers/providers.module';
@@ -50,6 +51,7 @@ import { UsersModule } from './users/users.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ScheduleModule.forRoot(),
     ProvidersModule,
+    NotificationsModule,
     UsersModule,
     AuthModule,
     GeoModule,

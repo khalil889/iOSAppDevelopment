@@ -3,6 +3,7 @@ import { GuideTimeOff, GuideWeeklyHours } from '../availability/availability.ent
 import { Booking } from '../bookings/booking.entity';
 import { SosAlert } from '../bookings/sos-alert.entity';
 import { Dispute } from '../disputes/dispute.entity';
+import { DeviceToken, Notification } from '../notifications/notification.entities';
 import { City } from '../geo/city.entity';
 import { Country } from '../geo/country.entity';
 import { Site } from '../geo/site.entity';
@@ -29,6 +30,8 @@ export const ENTITIES = [
   Dispute,
   GuideWeeklyHours,
   GuideTimeOff,
+  DeviceToken,
+  Notification,
 ];
 
 export {
@@ -47,4 +50,6 @@ export {
   Dispute,
   GuideWeeklyHours,
   GuideTimeOff,
+  DeviceToken,
+  Notification,
 };

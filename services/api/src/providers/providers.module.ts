@@ -10,6 +10,9 @@ import { PAYMENT_PROVIDER, PaymentProvider } from './payments/payment-provider.i
 import { StubPaymentProvider } from './payments/stub-payment.provider';
 import { MobishastraSmsSender } from './sms/mobishastra-sms.sender';
 import { SMS_SENDER, SmsSender } from './sms/sms-sender.interface';
+import { FcmPushSender } from './push/fcm-push.sender';
+import { PUSH_SENDER, PushSender } from './push/push-sender.interface';
+import { StubPushSender } from './push/stub-push.sender';
 import { LocalStorageProvider } from './storage/local-storage.provider';
 import { LocalUploadsController } from './storage/local-uploads.controller';
 import { S3StorageProvider } from './storage/s3-storage.provider';
@@ -43,8 +46,9 @@ function select<T>(token: symbol, configKey: string, impls: Record<string, new (
     select<SmsSender>(SMS_SENDER, 'providers.sms', { stub: StubSmsSender, mobishastra: MobishastraSmsSender }),
     select<AiAssistant>(AI_ASSISTANT, 'providers.ai', { stub: StubAiAssistant, claude: ClaudeAiAssistant }),
     select<StorageProvider>(STORAGE_PROVIDER, 'providers.storage', { local: LocalStorageProvider, s3: S3StorageProvider }),
+    select<PushSender>(PUSH_SENDER, 'providers.push', { stub: StubPushSender, fcm: FcmPushSender }),
   ],
   controllers: [LocalUploadsController],
-  exports: [PAYMENT_PROVIDER, KYC_PROVIDER, SMS_SENDER, AI_ASSISTANT, STORAGE_PROVIDER],
+  exports: [PAYMENT_PROVIDER, KYC_PROVIDER, SMS_SENDER, AI_ASSISTANT, STORAGE_PROVIDER, PUSH_SENDER],
 })
 export class ProvidersModule {}
