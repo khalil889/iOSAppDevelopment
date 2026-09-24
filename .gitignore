@@ -15,3 +15,6 @@ apps/mobile/.flutter-plugins
 apps/mobile/.flutter-plugins-dependencies
 apps/mobile/pubspec.lock.bak
 *.tsbuildinfo
+
+# Local upload storage (STORAGE_PROVIDER=local)
+services/api/uploads/
