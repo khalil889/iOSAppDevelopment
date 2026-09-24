@@ -69,6 +69,7 @@ void main() {
     final quote = requests.lastWhere((r) => r.url.path == '/bookings/quote');
     expect(jsonDecode(quote.body)['startAt'], '2026-10-04T04:30:00.000Z');
     expect(find.text('SAR 640'), findsWidgets);
+    expect(find.text('07:30–11:00 (Asia/Riyadh)'), findsOneWidget);
     expect(tester.widget<FilledButton>(confirm).onPressed, isNotNull);
   });
 

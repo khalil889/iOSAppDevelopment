@@ -38,3 +38,13 @@ String formatDate(DateTime d) => DateFormat('d MMM yyyy').format(d.toLocal());
 
 String titleCase(String s) =>
     s.isEmpty ? s : s.toLowerCase().split('_').map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1)).join(' ');
+
+/// "09:30" + 210 min → "13:00"; past midnight gets a "+1d" suffix.
+String addMinutesToClock(String hhmm, int minutes) {
+  final parts = hhmm.split(':');
+  final total = int.parse(parts[0]) * 60 + int.parse(parts[1]) + minutes;
+  final day = total ~/ 1440;
+  final m = total % 1440;
+  final clock = '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+  return day > 0 ? '$clock +${day}d' : clock;
+}

@@ -252,7 +252,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                 : 'Private group tour',
                             formatMoney(_quote!.totalMinor, _quote!.currency),
                           ),
-                          _line('Ends at', formatDateTime(_quote!.endAt)),
+                          _line('Time', '${_slot!.localTime}–${addMinutesToClock(_slot!.localTime, pkg.durationMinutes)} (${_slots?.timeZone ?? 'local'})'),
                           const Divider(),
                           _line('Total', formatMoney(_quote!.totalMinor, _quote!.currency), bold: true),
                         ]),

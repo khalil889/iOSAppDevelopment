@@ -153,7 +153,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     Card(
                       child: ListTile(
                         leading: const Icon(Icons.beach_access_outlined),
-                        title: Text(r.startDate == r.endDate ? r.startDate : '${r.startDate} → ${r.endDate}'),
+                        title: Text(r.startDate == r.endDate ? r.startDate : '${r.startDate} – ${r.endDate}'),
                         subtitle: r.reason != null ? Text(r.reason!) : null,
                         trailing: IconButton(
                           tooltip: 'Remove',
