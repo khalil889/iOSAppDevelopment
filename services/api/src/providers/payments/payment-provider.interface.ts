@@ -12,9 +12,20 @@ export interface HoldRequest {
   bookingId: string;
   amountMinor: number;
   currency: string;
-  /** Opaque token from the client-side SDK (card, Apple Pay, mada, ...) */
+  /**
+   * What the client-side SDK produced. Depending on the gateway this is a
+   * card/wallet token, or the id of a payment the app already created with a
+   * publishable key (Moyasar) — the provider verifies it server-side.
+   */
   paymentMethodToken: string;
   customerId: string;
+}
+
+/** Public, non-secret settings the mobile app needs to start a payment. */
+export interface ClientPaymentConfig {
+  provider: string;
+  publishableKey?: string;
+  callbackUrl?: string;
 }
 
 export interface HoldResult {
@@ -29,6 +40,12 @@ export interface PaymentProvider {
   readonly name: string;
   /** Charge the tourist and hold funds in escrow. */
   hold(req: HoldRequest): Promise<HoldResult>;
+  /**
+   * Re-check a hold that needed customer action (e.g. 3-D Secure) using the
+   * provider reference returned by `hold`.
+   */
+  verify(providerRef: string, expected: Omit<HoldRequest, 'paymentMethodToken'>): Promise<HoldResult>;
+  clientConfig(): ClientPaymentConfig;
   /** Pay out `amountMinor` of held funds to the guide. */
   release(providerRef: string, amountMinor: number, payee: { guideId: string }): Promise<{ payoutRef: string }>;
   /** Return `amountMinor` of held funds to the tourist. */

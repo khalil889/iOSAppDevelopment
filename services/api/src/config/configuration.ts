@@ -6,6 +6,15 @@ export interface AppConfig {
   corsOrigins: string[];
   otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean };
   providers: { sms: string; payment: string; kyc: string; ai: string };
+  moyasar: {
+    apiUrl: string;
+    secretKey: string;
+    publishableKey: string;
+    callbackUrl: string;
+    webhookSecret: string;
+  };
+  mobishastra: { apiUrl: string; user: string; password: string; senderId: string };
+  anthropic: { model: string; effort: 'low' | 'medium' | 'high' };
   marketplace: {
     platformFeePercent: number;
     reviewWindowDays: number;
@@ -45,6 +54,25 @@ export default (): AppConfig => ({
     payment: process.env.PAYMENT_PROVIDER ?? 'stub',
     kyc: process.env.KYC_PROVIDER ?? 'stub',
     ai: process.env.AI_PROVIDER ?? 'stub',
+  },
+  moyasar: {
+    apiUrl: process.env.MOYASAR_API_URL ?? 'https://api.moyasar.com/v1',
+    secretKey: process.env.MOYASAR_SECRET_KEY ?? '',
+    publishableKey: process.env.MOYASAR_PUBLISHABLE_KEY ?? '',
+    callbackUrl: process.env.MOYASAR_CALLBACK_URL ?? '',
+    webhookSecret: process.env.MOYASAR_WEBHOOK_SECRET ?? '',
+  },
+  mobishastra: {
+    apiUrl: process.env.MOBISHASTRA_API_URL ?? 'https://mshastra.com/sendurl.aspx',
+    user: process.env.MOBISHASTRA_USER ?? '',
+    password: process.env.MOBISHASTRA_PASSWORD ?? '',
+    senderId: process.env.MOBISHASTRA_SENDER_ID ?? '',
+  },
+  anthropic: {
+    model: process.env.ANTHROPIC_MODEL ?? 'claude-opus-5',
+    effort: (['low', 'medium', 'high'].includes(process.env.ANTHROPIC_EFFORT ?? '')
+      ? process.env.ANTHROPIC_EFFORT
+      : 'low') as 'low' | 'medium' | 'high',
   },
   marketplace: {
     platformFeePercent: int(process.env.PLATFORM_FEE_PERCENT, 15),
