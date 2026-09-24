@@ -14,6 +14,8 @@ export interface AdminGuide {
   licenseNumber: string | null;
   licenseExpiresAt: string | null;
   licenseDocumentUrl: string | null;
+  /** Short-lived signed link to the uploaded scan (private storage). */
+  licenseDocumentDownloadUrl?: string | null;
   licenseCountry: { id: string; name: string; code: string } | null;
   verificationStatus: VerificationStatus;
   submittedAt: string | null;

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { STORAGE_PROVIDER, StorageProvider } from '../providers/storage/storage.interface';
 import { DataSource } from 'typeorm';
 import { GuideVerificationStatus } from '../common/enums';
 import { Paginated } from '../common/pagination';
@@ -9,7 +10,10 @@ import { VerificationQueueQuery } from './dto';
 
 @Injectable()
 export class AdminGuidesService {
-  constructor(private readonly db: DataSource) {}
+  constructor(
+    private readonly db: DataSource,
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
+  ) {}
 
   private get guides() {
     return this.db.getRepository(Guide);
@@ -48,7 +52,10 @@ export class AdminGuidesService {
     const history = await this.db
       .getRepository(GuideVerificationEvent)
       .find({ where: { guideId: id }, order: { createdAt: 'DESC' } });
-    return { ...guide, history };
+    const { licenseDocumentKey } = (await this.guides.findOne({ where: { id }, select: { id: true, licenseDocumentKey: true } }))!;
+    // Short-lived link; the admin page re-fetches the detail to get a fresh one.
+    const licenseDocumentDownloadUrl = licenseDocumentKey ? await this.storage.createDownloadUrl(licenseDocumentKey) : null;
+    return { ...guide, licenseDocumentDownloadUrl, history };
   }
 
   async approve(adminId: string, id: string, note?: string) {

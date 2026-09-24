@@ -49,8 +49,13 @@ export class Guide extends BaseEntity {
   @Column({ type: 'date', nullable: true })
   licenseExpiresAt: string | null;
 
+  /** Legacy: link pasted by the guide before uploads existed. */
   @Column({ type: 'varchar', nullable: true })
   licenseDocumentUrl: string | null;
+
+  /** Private storage key of the uploaded license scan (see StorageProvider). */
+  @Column({ type: 'varchar', nullable: true, select: false })
+  licenseDocumentKey: string | null;
 
   @Index()
   @Column({

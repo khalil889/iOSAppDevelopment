@@ -82,7 +82,24 @@ export class SubmitApplicationDto {
   @ApiProperty({ example: '2027-12-31' }) @IsDateString({ strict: true })
   licenseExpiresAt: string;
 
-  @ApiPropertyOptional({ description: 'URL of the uploaded license scan' })
+  @ApiPropertyOptional({ description: 'Storage key returned by POST /guides/me/license-upload (preferred)' })
+  @IsOptional() @IsString() @MaxLength(300)
+  licenseDocumentKey?: string;
+
+  @ApiPropertyOptional({ description: 'Legacy: link to a license scan hosted elsewhere' })
   @IsOptional() @IsUrl({ require_tld: false })
   licenseDocumentUrl?: string;
+}
+
+export const LICENSE_CONTENT_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' } as const;
+export const LICENSE_MAX_BYTES = 10 * 1024 * 1024;
+
+export class LicenseUploadDto {
+  @ApiProperty({ enum: Object.keys(LICENSE_CONTENT_TYPES) })
+  @IsIn(Object.keys(LICENSE_CONTENT_TYPES))
+  contentType: keyof typeof LICENSE_CONTENT_TYPES;
+
+  @ApiProperty({ description: 'Exact file size in bytes (max 10 MB)' })
+  @IsInt() @Min(1) @Max(LICENSE_MAX_BYTES)
+  sizeBytes: number;
 }
