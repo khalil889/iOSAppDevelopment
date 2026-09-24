@@ -10,6 +10,7 @@ import '../../services/repository.dart';
 import '../../widgets/cards.dart';
 import '../../widgets/common.dart';
 import 'guide_profile_screen.dart';
+import '../shared/push_listener.dart';
 import 'site_guides_screen.dart';
 
 const _categories = ['HERITAGE', 'MUSEUM', 'NATURE', 'RELIGIOUS', 'CITY', 'ADVENTURE', 'FOOD'];
@@ -78,6 +79,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
             pinned: true,
             floating: true,
             expandedHeight: 120,
+            actions: const [NotificationBell()],
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 62),
               title: Text(user == null ? 'Explore' : 'Hi ${user.firstName} 👋'),

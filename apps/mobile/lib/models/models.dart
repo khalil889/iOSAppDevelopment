@@ -486,3 +486,44 @@ class GuideAvailability {
         timeOff: (j['timeOff'] as List? ?? []).map((t) => TimeOffRange.fromJson(t)).toList(),
       );
 }
+
+class AppNotification {
+  AppNotification({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.data,
+    required this.createdAt,
+    this.readAt,
+  });
+
+  final String id, type, title, body;
+  final Map<String, String> data;
+  final DateTime createdAt;
+  final DateTime? readAt;
+
+  bool get unread => readAt == null;
+  String? get bookingId => data['bookingId'];
+
+  factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
+        id: j['id'],
+        type: j['type'] ?? '',
+        title: j['title'] ?? '',
+        body: j['body'] ?? '',
+        data: (j['data'] as Map? ?? {}).map((k, v) => MapEntry('$k', '$v')),
+        createdAt: _date(j['createdAt']) ?? DateTime.now(),
+        readAt: _date(j['readAt']),
+      );
+}
+
+class Inbox {
+  Inbox({required this.items, required this.unread});
+  final List<AppNotification> items;
+  final int unread;
+
+  factory Inbox.fromJson(Map<String, dynamic> j) => Inbox(
+        items: (j['items'] as List? ?? []).map((n) => AppNotification.fromJson(n)).toList(),
+        unread: _int(j['unread']),
+      );
+}

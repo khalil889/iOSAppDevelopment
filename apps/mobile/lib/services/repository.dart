@@ -179,6 +179,16 @@ class Repository {
         if (documentKey != null) 'licenseDocumentKey': documentKey,
       });
 
+  // ---- Notifications ------------------------------------------------------
+  Future<void> registerDevice(String token, String platform) =>
+      api.post('/me/devices', {'token': token, 'platform': platform});
+
+  Future<void> unregisterDevice(String token) => api.post('/me/devices/unregister', {'token': token});
+
+  Future<Inbox> inbox() async => Inbox.fromJson(await api.get('/me/notifications', query: {'limit': 50}));
+
+  Future<void> markAllRead() => api.post('/me/notifications/read', {});
+
   // ---- Assistant ----------------------------------------------------------
   Future<ChatMessage> chat(List<ChatMessage> history) async {
     final j = await api.post('/assistant/chat', {'messages': history.map((m) => m.toJson()).toList()});

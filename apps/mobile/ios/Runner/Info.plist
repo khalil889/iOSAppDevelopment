@@ -8,6 +8,10 @@
 	<string>Take a photo of your tourism license for verification.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose a photo of your tourism license for verification.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

@@ -2,14 +2,17 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
+import '../services/push_service.dart';
 import '../services/repository.dart';
 import 'api_client.dart';
 
 /// Holds the signed-in user and token; persists the token across launches.
 class Session extends ChangeNotifier {
-  Session(this.api, this.repo) {
+  Session(this.api, this.repo, {PushService? push}) : push = push ?? DisabledPushService() {
     api.onUnauthorized = signOut;
   }
+
+  final PushService push;
 
   static const _tokenKey = 'auth_token';
 
@@ -29,6 +32,7 @@ class Session extends ChangeNotifier {
       if (token != null) {
         api.token = token;
         user = await repo.me();
+        push.onSignedIn(repo);
       }
     } catch (_) {
       api.token = null;
@@ -45,6 +49,7 @@ class Session extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
     notifyListeners();
+    push.onSignedIn(repo);
   }
 
   Future<void> refreshUser() async {
@@ -53,6 +58,8 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    // Unregister while the token is still valid so this phone stops getting pushes.
+    if (api.token != null) await push.onSignedOut(repo);
     api.token = null;
     user = null;
     final prefs = await SharedPreferences.getInstance();
