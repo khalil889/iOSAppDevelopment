@@ -21,6 +21,8 @@ import {
   Booking,
   City,
   Country,
+  Dispute,
+  SosAlert,
   Guide,
   GuideVerificationEvent,
   Payment,
@@ -246,7 +248,23 @@ async function run() {
   // Sara: completed yesterday, escrow still held, NOT yet reviewed -> demo the review screen
   await makeBooking({ tourist: 'sara', guide: 'noura', pkgIndex: 1, startInHours: -26, groupSize: 2, status: BookingStatus.COMPLETED, escrow: EscrowStatus.HELD });
   // Sara: live tour right now -> demo live tour + SOS
-  await makeBooking({ tourist: 'sara', guide: 'faisal', startInHours: -0.5, groupSize: 2, status: BookingStatus.IN_PROGRESS, escrow: EscrowStatus.HELD });
+  const live = await makeBooking({ tourist: 'sara', guide: 'faisal', startInHours: -0.5, groupSize: 2, status: BookingStatus.IN_PROGRESS, escrow: EscrowStatus.HELD });
+  // Admin demo: an open SOS on the live tour ...
+  await ds.getRepository(SosAlert).save({
+    bookingId: live.id,
+    raisedById: live.touristId,
+    location: geoPoint(24.7339, 46.5755),
+    message: 'Separated from the group near Salwa Palace, phone battery low',
+    createdAt: new Date(now.getTime() - 4 * 60_000),
+  });
+  // ... and an open dispute on a completed tour (escrow frozen)
+  const disputed = await makeBooking({ tourist: 'aisha', guide: 'omar', startInHours: -50, groupSize: 3, status: BookingStatus.COMPLETED, escrow: EscrowStatus.DISPUTED });
+  await ds.getRepository(Dispute).save({
+    bookingId: disputed.id,
+    openedById: disputed.touristId,
+    reason: 'NOT_AS_DESCRIBED',
+    description: 'The tour was cut to 90 minutes and we skipped the street-food tastings that were advertised.',
+  });
   // Sara: upcoming confirmed
   await makeBooking({ tourist: 'sara', guide: 'omar', startInHours: 24 * 3, groupSize: 2, status: BookingStatus.CONFIRMED, escrow: EscrowStatus.HELD });
   // Faisal: upcoming confirmed from Lucas (guide dashboard, can be started ~30 min before)

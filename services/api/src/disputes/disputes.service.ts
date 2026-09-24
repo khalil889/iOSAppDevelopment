@@ -70,6 +70,15 @@ export class DisputesService {
     return { items, total, page: q.page, limit: q.limit };
   }
 
+  async detail(id: string) {
+    const dispute = await this.db.getRepository(Dispute).findOne({
+      where: { id },
+      relations: { booking: { payment: true, tourist: true, guide: { user: true }, package: { city: true } } },
+    });
+    if (!dispute) throw new NotFoundException('Dispute not found');
+    return dispute;
+  }
+
   async resolve(adminId: string, id: string, dto: ResolveDisputeDto) {
     const dispute = await this.db.getRepository(Dispute).findOne({ where: { id }, relations: { booking: true } });
     if (!dispute) throw new NotFoundException('Dispute not found');
