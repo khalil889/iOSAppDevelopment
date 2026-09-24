@@ -18,7 +18,7 @@ void main() {
       providers: [
         Provider.value(value: repo),
         ChangeNotifierProvider.value(value: session),
-        Provider<LocationService>(create: (_) => StubLocationService()),
+        Provider<LocationService>(create: (_) => GeolocatorLocationService()),
         Provider<PaymentSheet>(create: (_) => ConfiguredPaymentSheet(repo)),
       ],
       child: const TourGuideApp(),

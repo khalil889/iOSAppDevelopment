@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>If you press SOS during a tour, your location is shared with our safety team so they can reach you.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo of your tourism license for verification.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
