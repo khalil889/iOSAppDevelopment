@@ -3,6 +3,8 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -24,6 +26,8 @@ const OTP_RESEND_SECONDS = 30;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly users: UsersService,
     private readonly jwt: JwtService,
@@ -84,6 +88,14 @@ export class AuthService {
 
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
     if (user) {
+      // Send first: if the gateway rejects the message, no code is stored and
+      // the resend cooldown doesn't lock the user out.
+      try {
+        await this.sms.send(dto.phone, `Your TourGuide code is ${code}`);
+      } catch (e) {
+        this.logger.error(`OTP delivery failed: ${(e as Error).message}`);
+        throw new ServiceUnavailableException('We could not send the SMS right now. Please try again shortly.');
+      }
       await this.otps.save(
         this.otps.create({
           phone: dto.phone,
@@ -92,7 +104,6 @@ export class AuthService {
           expiresAt: new Date(Date.now() + this.config.get<number>('otp.ttlSeconds')! * 1000),
         }),
       );
-      await this.sms.send(dto.phone, `Your TourGuide code is ${code}`);
     }
     const devEcho = this.config.get<boolean>('otp.devEcho') && user;
     return devEcho ? { otpSent: true, devCode: code } : { otpSent: true };
