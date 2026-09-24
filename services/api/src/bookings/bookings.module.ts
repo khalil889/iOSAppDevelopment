@@ -5,11 +5,12 @@ import { PaymentsModule } from '../payments/payments.module';
 import { Booking } from './booking.entity';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
+import { PaymentWebhooksController } from './payment-webhooks.controller';
 import { SosAlert } from './sos-alert.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Booking, SosAlert]), GuidesModule, PaymentsModule],
-  controllers: [BookingsController],
+  controllers: [BookingsController, PaymentWebhooksController],
   providers: [BookingsService],
   exports: [BookingsService],
 })

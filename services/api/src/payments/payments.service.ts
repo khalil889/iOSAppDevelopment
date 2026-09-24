@@ -1,13 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, EntityManager, In, LessThanOrEqual } from 'typeorm';
+import { DataSource, EntityManager, In, LessThanOrEqual, QueryFailedError } from 'typeorm';
 import { Booking } from '../bookings/booking.entity';
 import { refundAmount } from '../bookings/booking.rules';
 import { DisputeStatus, EscrowStatus } from '../common/enums';
 import { DomainError } from '../common/errors/domain-error';
 import { Dispute } from '../disputes/dispute.entity';
-import { PAYMENT_PROVIDER, PaymentProvider } from '../providers/payments/payment-provider.interface';
+import { HoldResult, PAYMENT_PROVIDER, PaymentProvider } from '../providers/payments/payment-provider.interface';
 import { canReleaseEscrow, escrowStatusAfterRefund } from './escrow.rules';
 import { Payment } from './payment.entity';
 
@@ -25,6 +25,10 @@ export class PaymentsService {
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
 
+  clientConfig() {
+    return this.provider.clientConfig();
+  }
+
   /** Charge the tourist and hold the booking total in escrow. */
   async hold(booking: Booking, paymentMethodToken: string): Promise<HoldOutcome> {
     const repo = this.db.getRepository(Payment);
@@ -41,7 +45,37 @@ export class PaymentsService {
       paymentMethodToken,
       customerId: booking.touristId,
     });
+    return this.record(payment, booking, res);
+  }
 
+  /** Re-checks a hold that was waiting on the customer (3-D Secure). */
+  async verifyPending(booking: Booking): Promise<HoldOutcome | null> {
+    const repo = this.db.getRepository(Payment);
+    const payment = await repo.findOneBy({ bookingId: booking.id });
+    if (!payment?.providerRef) return null;
+    if (payment.escrowStatus === EscrowStatus.HELD) return { status: 'held', payment };
+    if (payment.escrowStatus !== EscrowStatus.PENDING) return null;
+    const res = await this.provider.verify(payment.providerRef, {
+      bookingId: booking.id,
+      amountMinor: booking.totalMinor,
+      currency: booking.currency,
+      customerId: booking.touristId,
+    });
+    return this.record(payment, booking, res);
+  }
+
+  findByProviderRef(providerRef: string) {
+    return this.db.getRepository(Payment).findOne({ where: { provider: this.provider.name, providerRef } });
+  }
+
+  async markFailed(paymentId: string, reason: string) {
+    await this.db
+      .getRepository(Payment)
+      .update({ id: paymentId, escrowStatus: EscrowStatus.PENDING }, { escrowStatus: EscrowStatus.FAILED, failureReason: reason });
+  }
+
+  private async record(payment: Payment, booking: Booking, res: HoldResult): Promise<HoldOutcome> {
+    const repo = this.db.getRepository(Payment);
     Object.assign(payment, {
       provider: this.provider.name,
       providerRef: res.providerRef,
@@ -50,18 +84,29 @@ export class PaymentsService {
       failureReason: res.failureReason ?? null,
     });
 
+    const save = async () => {
+      try {
+        return await repo.save(payment);
+      } catch (e) {
+        if (e instanceof QueryFailedError && (e as QueryFailedError & { code?: string }).code === '23505') {
+          throw new DomainError('PAYMENT_ALREADY_USED', 'This payment is already attached to another booking', 'conflict');
+        }
+        throw e;
+      }
+    };
+
     if (res.status === 'failed') {
       payment.escrowStatus = EscrowStatus.FAILED;
-      await repo.save(payment);
+      await save();
       throw new DomainError('PAYMENT_FAILED', res.failureReason ?? 'Payment failed');
     }
     if (res.status === 'requires_action') {
       payment.escrowStatus = EscrowStatus.PENDING;
-      return { status: 'requires_action', payment: await repo.save(payment), nextActionUrl: res.nextActionUrl };
+      return { status: 'requires_action', payment: await save(), nextActionUrl: res.nextActionUrl };
     }
     payment.escrowStatus = EscrowStatus.HELD;
-    payment.heldAt = new Date();
-    return { status: 'held', payment: await repo.save(payment) };
+    payment.heldAt ??= new Date();
+    return { status: 'held', payment: await save() };
   }
 
   /** Called when a tour completes: escrow becomes releasable after the dispute window. */

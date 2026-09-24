@@ -116,14 +116,67 @@ export class BookingsService {
   async pay(user: AuthUser, id: string, token: string) {
     const booking = await this.load(id);
     const actor = await this.actor(user);
-    const to = nextStatus(booking, 'pay', actor, new Date());
+    const now = new Date();
+    // A lapsed payment window only matters if someone else took the slot
+    // meanwhile; that is checked once the money is secured (see settleLatePayment).
+    const lapsed = !!booking.paymentDueAt && booking.paymentDueAt <= now;
+    nextStatus({ ...booking, paymentDueAt: lapsed ? null : booking.paymentDueAt }, 'pay', actor, now);
 
     const outcome = await this.payments.hold(booking, token);
     if (outcome.status === 'requires_action') {
       return { booking: await this.get(user, id), nextActionUrl: outcome.nextActionUrl };
     }
-    await this.db.getRepository(Booking).update({ id }, { status: to, paymentDueAt: null });
+    await this.confirmPaid(booking);
     return { booking: await this.get(user, id) };
+  }
+
+  /**
+   * Called by the app after 3-D Secure, and by the gateway webhook: re-checks
+   * the pending payment and confirms the booking once funds are held.
+   */
+  async confirmPayment(user: AuthUser | null, id: string) {
+    const booking = await this.load(id);
+    if (user && user.id !== booking.touristId) {
+      throw new DomainError('NOT_BOOKING_OWNER', 'Only the tourist can pay for this booking', 'forbidden');
+    }
+    if (booking.status === BookingStatus.PENDING_PAYMENT) {
+      const outcome = await this.payments.verifyPending(booking);
+      if (outcome?.status === 'held') await this.confirmPaid(booking);
+    }
+    return user ? { booking: await this.get(user, id) } : null;
+  }
+
+  private async confirmPaid(booking: Booking) {
+    const now = new Date();
+    if (booking.paymentDueAt && booking.paymentDueAt <= now) {
+      await this.settleLatePayment(booking, now);
+    }
+    await this.db
+      .getRepository(Booking)
+      .update({ id: booking.id, status: BookingStatus.PENDING_PAYMENT }, { status: BookingStatus.CONFIRMED, paymentDueAt: null });
+  }
+
+  /** Payment arrived after the hold lapsed: keep it if the slot is still free, otherwise refund. */
+  private async settleLatePayment(booking: Booking, now: Date) {
+    const clash = await this.db
+      .getRepository(Booking)
+      .createQueryBuilder('b')
+      .where('b.guideId = :g AND b.id <> :id', { g: booking.guideId, id: booking.id })
+      .andWhere('b.status IN (:...s)', {
+        s: [BookingStatus.PENDING_PAYMENT, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS],
+      })
+      .andWhere('b.startAt < :endAt AND b.endAt > :startAt', { startAt: booking.startAt, endAt: booking.endAt })
+      .getMany();
+    try {
+      assertNoConflict(booking, clash, now);
+    } catch (e) {
+      await this.payments.settle(booking, 100, 'Slot taken before payment completed');
+      await this.db.getRepository(Booking).update(
+        { id: booking.id },
+        { status: BookingStatus.CANCELLED, cancelledAt: now, cancellationReason: 'Payment completed after the slot was taken; refunded', paymentDueAt: null },
+      );
+      throw new DomainError('SLOT_UNAVAILABLE', 'This time slot was taken while your payment was processing. You have been refunded in full.', 'conflict');
+    }
   }
 
   async start(user: AuthUser, id: string) {
