@@ -93,6 +93,79 @@ export const adminApi = {
     api<AdminGuide>(`/admin/guides/${id}/suspend`, { method: 'POST', body: JSON.stringify({ reason }) }),
 };
 
+export type EscrowStatus = 'PENDING' | 'HELD' | 'RELEASED' | 'REFUNDED' | 'PARTIALLY_REFUNDED' | 'DISPUTED' | 'FAILED';
+export type DisputeResolution = 'REFUND_TOURIST' | 'RELEASE_TO_GUIDE' | 'PARTIAL_REFUND';
+
+export interface AdminDispute {
+  id: string;
+  reason: string;
+  description: string;
+  status: 'OPEN' | 'RESOLVED';
+  resolution: DisputeResolution | null;
+  refundPercent: number | null;
+  resolutionNote: string | null;
+  openedById: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  booking: {
+    id: string;
+    status: string;
+    startAt: string;
+    endAt: string;
+    groupSize: number;
+    totalMinor: number;
+    guidePayoutMinor: number;
+    currency: string;
+    touristId: string;
+    completedAt: string | null;
+    tourist: { fullName: string; email: string | null; phone: string | null };
+    guide: { id: string; user: { fullName: string; email: string | null; phone: string | null } };
+    package: { title: string; city?: { name: string } };
+    payment: { escrowStatus: EscrowStatus; amountMinor: number; refundedMinor: number; releasedMinor: number; provider: string; providerRef: string | null } | null;
+  };
+}
+
+export interface SosAlert {
+  id: string;
+  createdAt: string;
+  message: string | null;
+  location: { lat: number; lng: number; mapsUrl: string } | null;
+  acknowledgedAt: string | null;
+  resolutionNote: string | null;
+  raisedBy: 'TOURIST' | 'GUIDE';
+  booking: {
+    id: string;
+    status: string;
+    startAt: string;
+    endAt: string;
+    groupSize: number;
+    packageTitle?: string;
+    city?: string;
+    tourist: { name?: string; phone?: string | null };
+    guide: { name?: string; phone?: string | null };
+  };
+}
+
+export const opsApi = {
+  disputes: (status: 'OPEN' | 'RESOLVED' | '', page = 1) =>
+    api<Paginated<AdminDispute>>(`/admin/disputes?page=${page}&limit=20${status ? `&status=${status}` : ''}`),
+  dispute: (id: string) => api<AdminDispute>(`/admin/disputes/${id}`),
+  resolve: (id: string, body: { resolution: DisputeResolution; refundPercent?: number; note?: string }) =>
+    api<AdminDispute>(`/admin/disputes/${id}/resolve`, { method: 'POST', body: JSON.stringify(body) }),
+  sos: (status: 'open' | 'acknowledged' | 'all') => api<SosAlert[]>(`/admin/sos?status=${status}`),
+  sosCounts: () => api<{ open: number; acknowledged: number }>('/admin/sos/counts'),
+  acknowledge: (id: string, note?: string) =>
+    api<SosAlert>(`/admin/sos/${id}/acknowledge`, { method: 'POST', body: JSON.stringify({ note }) }),
+};
+
+/** Minor units → display string; JOD/KWD/BHD/OMR use 3 decimals. */
+export const fmtMoney = (minor: number, currency: string) => {
+  const exp = ['JOD', 'KWD', 'BHD', 'OMR', 'TND'].includes(currency) ? 3 : 2;
+  const value = minor / 10 ** exp;
+  const digits = Number.isInteger(value) ? 0 : exp;
+  return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+};
+
 export const fmtDate = (s: string | null | undefined) =>
   s ? new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
