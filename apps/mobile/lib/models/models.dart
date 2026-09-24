@@ -423,3 +423,66 @@ class PaymentClientConfig {
         callbackUrl: j['callbackUrl'],
       );
 }
+
+class TimeSlot {
+  TimeSlot({required this.startAt, required this.endAt, required this.localTime});
+  final DateTime startAt, endAt;
+
+  /// Start time in the tour city's timezone, e.g. "09:30".
+  final String localTime;
+
+  factory TimeSlot.fromJson(Map<String, dynamic> j) => TimeSlot(
+        startAt: _date(j['startAt'])!,
+        endAt: _date(j['endAt'])!,
+        localTime: j['localTime'] ?? '',
+      );
+}
+
+class DaySlots {
+  DaySlots({required this.date, required this.timeZone, required this.slots});
+  final String date, timeZone;
+  final List<TimeSlot> slots;
+
+  factory DaySlots.fromJson(Map<String, dynamic> j) => DaySlots(
+        date: j['date'],
+        timeZone: j['timeZone'] ?? 'UTC',
+        slots: (j['slots'] as List? ?? []).map((s) => TimeSlot.fromJson(s)).toList(),
+      );
+}
+
+class WeeklyWindow {
+  WeeklyWindow({required this.weekday, required this.start, required this.end});
+
+  /// 0 = Sunday … 6 = Saturday
+  final int weekday;
+  final String start, end; // "HH:MM"
+
+  factory WeeklyWindow.fromJson(Map<String, dynamic> j) =>
+      WeeklyWindow(weekday: _int(j['weekday']), start: j['start'], end: j['end']);
+  Map<String, dynamic> toJson() => {'weekday': weekday, 'start': start, 'end': end};
+}
+
+class TimeOffRange {
+  TimeOffRange({required this.startDate, required this.endDate, this.reason});
+  final String startDate, endDate; // YYYY-MM-DD
+  final String? reason;
+
+  factory TimeOffRange.fromJson(Map<String, dynamic> j) =>
+      TimeOffRange(startDate: j['startDate'], endDate: j['endDate'], reason: j['reason']);
+  Map<String, dynamic> toJson() => {
+        'startDate': startDate,
+        'endDate': endDate,
+        if (reason != null && reason!.isNotEmpty) 'reason': reason,
+      };
+}
+
+class GuideAvailability {
+  GuideAvailability({required this.weeklyHours, required this.timeOff});
+  final List<WeeklyWindow> weeklyHours;
+  final List<TimeOffRange> timeOff;
+
+  factory GuideAvailability.fromJson(Map<String, dynamic> j) => GuideAvailability(
+        weeklyHours: (j['weeklyHours'] as List? ?? []).map((w) => WeeklyWindow.fromJson(w)).toList(),
+        timeOff: (j['timeOff'] as List? ?? []).map((t) => TimeOffRange.fromJson(t)).toList(),
+      );
+}

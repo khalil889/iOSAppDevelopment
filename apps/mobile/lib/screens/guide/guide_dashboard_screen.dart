@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import '../../services/repository.dart';
 import '../../widgets/common.dart';
 import '../shared/live_tour_screen.dart';
+import 'availability_screen.dart';
 import 'license_form_screen.dart';
 
 /// Guide mode home: verification status, earnings, stats and upcoming tours.
@@ -81,6 +82,15 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
               ]),
             ),
           ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.schedule),
+            title: const Text('Availability'),
+            subtitle: const Text('Weekly hours and days off'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AvailabilityScreen())),
+          ),
+        ),
         const SizedBox(height: 16),
         Text('Upcoming tours', style: t.titleLarge),
         if (d.upcoming.isEmpty)

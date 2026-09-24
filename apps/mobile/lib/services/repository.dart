@@ -81,6 +81,20 @@ class Repository {
 
   Future<GuideProfile> guideProfile(String id) async => GuideProfile.fromJson(await api.get('/guides/$id'));
 
+  // ---- Availability -------------------------------------------------------
+  /// Free start times for [packageId] on a local calendar [date] (YYYY-MM-DD).
+  Future<DaySlots> slots(String packageId, String date) async =>
+      DaySlots.fromJson(await api.get('/availability/slots', query: {'packageId': packageId, 'date': date}));
+
+  Future<GuideAvailability> myAvailability() async =>
+      GuideAvailability.fromJson(await api.get('/guides/me/availability'));
+
+  Future<GuideAvailability> saveAvailability(List<WeeklyWindow> hours, List<TimeOffRange> timeOff) async =>
+      GuideAvailability.fromJson(await api.put('/guides/me/availability', {
+        'weeklyHours': hours.map((w) => w.toJson()).toList(),
+        'timeOff': timeOff.map((t) => t.toJson()).toList(),
+      }));
+
   // ---- Bookings -----------------------------------------------------------
   Map<String, dynamic> _bookingBody(String packageId, DateTime startAt, int groupSize, String? notes) => {
         'packageId': packageId,
