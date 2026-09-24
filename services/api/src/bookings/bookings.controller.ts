@@ -44,6 +44,13 @@ export class BookingsController {
     return this.bookings.pay(user, id, dto.paymentMethodToken);
   }
 
+  /** After 3-D Secure: re-check the pending payment and confirm the booking. */
+  @HttpCode(200)
+  @Post(':id/pay/confirm')
+  confirmPayment(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.bookings.confirmPayment(user, id);
+  }
+
   @Roles(UserRole.GUIDE)
   @HttpCode(200)
   @Post(':id/start')

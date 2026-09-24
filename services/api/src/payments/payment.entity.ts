@@ -1,9 +1,11 @@
-import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
 import { BaseEntity } from '../common/base.entity';
 import { EscrowStatus } from '../common/enums';
 import type { Booking } from '../bookings/booking.entity';
 
 @Entity('payments')
+// A gateway payment can only ever fund one booking.
+@Index(['provider', 'providerRef'], { unique: true, where: '"providerRef" IS NOT NULL' })
 export class Payment extends BaseEntity {
   @Column({ type: 'uuid', unique: true })
   bookingId: string;

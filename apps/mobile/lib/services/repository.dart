@@ -95,8 +95,20 @@ class Repository {
   Future<Booking> createBooking(String packageId, DateTime startAt, int groupSize, {String? notes}) async =>
       Booking.fromJson(await api.post('/bookings', _bookingBody(packageId, startAt, groupSize, notes)));
 
+  Future<PaymentClientConfig> paymentConfig() async =>
+      PaymentClientConfig.fromJson(await api.get('/payments/config'));
+
+  /// Pays and, if the gateway still needs confirmation (3-D Secure), re-checks
+  /// once. Returns the booking — CONFIRMED when the money is held.
   Future<Booking> pay(String bookingId, String token) async {
     final j = await api.post('/bookings/$bookingId/pay', {'paymentMethodToken': token});
+    final booking = Booking.fromJson(j['booking']);
+    if (booking.status != BookingStatus.pendingPayment) return booking;
+    return confirmPayment(bookingId);
+  }
+
+  Future<Booking> confirmPayment(String bookingId) async {
+    final j = await api.post('/bookings/$bookingId/pay/confirm');
     return Booking.fromJson(j['booking']);
   }
 

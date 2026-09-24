@@ -19,7 +19,7 @@ void main() {
         Provider.value(value: repo),
         ChangeNotifierProvider.value(value: session),
         Provider<LocationService>(create: (_) => StubLocationService()),
-        Provider<PaymentSheet>(create: (_) => StubPaymentSheet()),
+        Provider<PaymentSheet>(create: (_) => ConfiguredPaymentSheet(repo)),
       ],
       child: const TourGuideApp(),
     ),

@@ -411,3 +411,15 @@ class GuideDashboard {
     );
   }
 }
+
+class PaymentClientConfig {
+  PaymentClientConfig({required this.provider, this.publishableKey, this.callbackUrl});
+  final String provider;
+  final String? publishableKey, callbackUrl;
+
+  factory PaymentClientConfig.fromJson(Map<String, dynamic> j) => PaymentClientConfig(
+        provider: j['provider'] ?? 'stub',
+        publishableKey: j['publishableKey'],
+        callbackUrl: j['callbackUrl'],
+      );
+}

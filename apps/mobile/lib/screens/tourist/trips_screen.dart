@@ -138,7 +138,15 @@ class _TripsScreenState extends State<TripsScreen> {
       if (b.status == BookingStatus.pendingPayment)
         FilledButton(
           onPressed: () async {
-            final token = await context.read<PaymentSheet>().collect(context, amountLabel: formatMoney(b.totalMinor, b.currency));
+            final token = await context.read<PaymentSheet>().collect(
+              context,
+              PaymentRequest(
+                bookingId: b.id,
+                amountMinor: b.totalMinor,
+                currency: b.currency,
+                description: b.package?.title ?? 'Tour booking',
+              ),
+            );
             if (token == null) return;
             try {
               await repo.pay(b.id, token);
