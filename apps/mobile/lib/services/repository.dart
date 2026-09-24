@@ -158,17 +158,25 @@ class Repository {
   // ---- Guide --------------------------------------------------------------
   Future<GuideDashboard> dashboard() async => GuideDashboard.fromJson(await api.get('/guides/me/dashboard'));
 
+  /// Uploads a license scan to private storage and returns its storage key.
+  Future<String> uploadLicense(List<int> bytes, String contentType) async {
+    final signed = await api.post('/guides/me/license-upload', {'contentType': contentType, 'sizeBytes': bytes.length});
+    final headers = Map<String, String>.from(signed['headers'] as Map);
+    await api.uploadBytes(signed['uploadUrl'] as String, bytes, headers);
+    return signed['key'] as String;
+  }
+
   Future<void> submitLicense({
     required String licenseNumber,
     required String countryId,
     required String expiresAt,
-    String? documentUrl,
+    String? documentKey,
   }) =>
       api.post('/guides/me/application', {
         'licenseNumber': licenseNumber,
         'licenseCountryId': countryId,
         'licenseExpiresAt': expiresAt,
-        if (documentUrl != null && documentUrl.isNotEmpty) 'licenseDocumentUrl': documentUrl,
+        if (documentKey != null) 'licenseDocumentKey': documentKey,
       });
 
   // ---- Assistant ----------------------------------------------------------
