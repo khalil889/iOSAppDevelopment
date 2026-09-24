@@ -35,9 +35,9 @@ flutter run --dart-define=API_URL=http://10.0.2.2:3000/api   # Android emulator
 
 | Role | Login | Password | What to try |
 | --- | --- | --- | --- |
-| Admin | admin@tourguide.test | `Admin123!` | Admin portal: approve Khalid, reject Layla |
-| Tourist | sara@example.com | `Password123!` | Live tour + SOS, review the AlUla tour, upcoming booking |
-| Guide | faisal@guides.test | `Password123!` | Dashboard, live tour → *Complete tour* |
+| Admin | admin@tourguide.test | `Admin123!` | Approve Khalid, reject Layla; acknowledge the open SOS; resolve the open dispute |
+| Tourist | sara@example.com | `Password123!` | Live tour + SOS, review the AlUla tour, upcoming booking, inbox |
+| Guide | faisal@guides.test | `Password123!` | Dashboard, availability (has a day off next week), live tour → *Complete tour* |
 
 Other seeded guides: noura, omar, mona, yousef (approved), khalid & layla
 (pending), sami (rejected) — all `@guides.test` / `Password123!`.
@@ -92,33 +92,45 @@ has a unit test next to it:
 | --- | --- |
 | Auth | `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `GET /auth/me` |
 | Explore | `GET /countries` · `GET /cities` · `GET /sites?q&countryId&cityId&category&lat&lng&radiusKm` · `GET /sites/:id` |
-| Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/application` · `GET /guides/me/dashboard` |
+| Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/license-upload` · `POST /guides/me/application` · `GET /guides/me/dashboard` |
+| Availability | `GET /availability/slots?packageId&date` · `GET/PUT /guides/me/availability` |
 | Packages | `GET /packages/:id` · `GET /packages/mine` · `POST /packages` · `PATCH /packages/:id` |
 | Bookings | `POST /bookings/quote` · `POST /bookings` · `GET /bookings` · `GET /bookings/:id` · `POST /bookings/:id/pay` · `/pay/confirm` · `/start` · `/complete` · `/cancel` · `/sos` |
 | Payments | `GET /payments/config` (provider + publishable key) · `POST /payments/webhooks/moyasar` |
 | Reviews / disputes | `POST /bookings/:id/review` · `POST /bookings/:id/disputes` · `GET /disputes/mine` |
 | Assistant | `POST /assistant/chat` |
-| Admin | `GET /admin/guides?status` · `GET /admin/guides/counts` · `GET /admin/guides/:id` · `POST /admin/guides/:id/approve` · `/reject` · `/suspend` · `GET /admin/disputes` · `POST /admin/disputes/:id/resolve` · `GET /admin/sos` · `POST /admin/payments/release-due` |
+| Notifications | `POST /me/devices` · `POST /me/devices/unregister` · `GET /me/notifications` · `POST /me/notifications/read` |
+| Admin | `GET /admin/guides?status` · `GET /admin/guides/counts` · `GET /admin/guides/:id` · `POST /admin/guides/:id/approve` · `/reject` · `/suspend` · `GET /admin/disputes` · `GET /admin/disputes/:id` · `POST /admin/disputes/:id/resolve` · `GET /admin/sos?status` · `GET /admin/sos/counts` · `POST /admin/sos/:id/acknowledge` · `POST /admin/payments/release-due` |
 
 Rule violations come back with a stable error code, for example
 `{"statusCode":409,"error":"SLOT_UNAVAILABLE","message":"..."}`.
 
 ### Mobile screens (`apps/mobile/lib/screens`)
 
-Explore (places and guides with filters) · Guide profile · Booking (live
-quote, then escrow payment) · Trips · Live tour (timer, stops, contact, and an
-**SOS** button you hold for 1 second) · Review · AI travel assistant chat ·
-Guide dashboard (verification status, earnings in escrow and paid out,
-upcoming tours, start and complete tour) · License submission. The bottom
-navigation switches between tourist and guide mode based on the account's
-role. Guests can browse without signing in.
+Explore (places and guides with filters) · Guide profile · Booking (free time
+slots in the tour city's timezone, live quote, then escrow payment) · Trips ·
+Live tour (timer, stops, contact, and an **SOS** button you hold for 1 second;
+sends GPS) · Review · AI travel assistant chat · Notification inbox · Guide
+dashboard (verification status, earnings in escrow and paid out, upcoming
+tours, start and complete tour) · Availability (weekly hours, days off) ·
+License submission (photo upload). The bottom navigation switches between
+tourist and guide mode based on the account's role. Guests can browse without
+signing in.
 
 ### Admin portal (`apps/admin`)
 
-Verification queue with status tabs and counts, oldest submission first.
-Opening a guide shows the license, the automated KYC checks, contact details,
-coverage and audit history. From there an admin can **approve**, **reject**
-(a reason is required, with templates to pick from) or suspend.
+- **Guide verification:** queue with status tabs and counts, oldest
+  submission first. Opening a guide shows the license (with a 5-minute link to
+  the uploaded scan), the automated KYC checks, contact details, coverage and
+  audit history. An admin can **approve**, **reject** (a reason is required,
+  with templates to pick from) or suspend.
+- **Disputes:** open and resolved lists. The detail page shows the complaint,
+  the booking, both people and the escrowed money. The resolve form (full
+  refund, partial refund, or release to guide) shows the exact refund and
+  guide payout before any money moves.
+- **SOS:** a live board that refreshes every 15 seconds, with tap-to-call
+  numbers, a map link and *acknowledge with a note*. The nav shows a badge
+  with the number of open alerts.
 
 ## Providers
 
@@ -183,28 +195,104 @@ CITC-registered sender ID.
   cut off or invalid, the rule-based assistant answers instead, so the chat
   never breaks.
 
-The mobile app still has one stub: `LocationService` (use `geolocator` for GPS
-in SOS alerts).
+## Phase 3 features
+
+### Guide availability
+
+Guides set weekly hours per day (up to 4 windows) and days off in the app.
+Times are wall-clock times in the **tour city's timezone**, so they stay
+correct across daylight saving (for example in Cairo). The API enforces them
+in three places:
+
+- **Booking and quotes:** a time outside the guide's hours is refused with
+  `GUIDE_UNAVAILABLE`.
+- **Slots:** `GET /availability/slots` lists 30-minute start times that fit the
+  tour's length, skip existing bookings and respect the 2-hour notice.
+- **Search:** date search leaves out guides who are off that weekday or on
+  time off.
+
+A guide who hasn't set any hours stays bookable at any time, and the app then
+offers 08:00–20:00.
+
+### License upload
+
+1. The app asks `POST /guides/me/license-upload` for a signed upload URL.
+2. It uploads the photo straight to storage.
+3. It submits the returned `licenseDocumentKey` with the application. The API
+   only accepts keys under that guide's own `licenses/<guideId>/` prefix, and
+   only once the file exists.
+
+Two storage backends:
+
+- **`STORAGE_PROVIDER=s3`:** a private bucket on AWS S3, Cloudflare R2 or
+  MinIO. The signed upload fixes the file's content type and exact size;
+  download links expire after 5 minutes.
+- **`local` (default):** files on the API's disk behind HMAC-signed links.
+  Development only.
+
+### SOS alerts
+
+- The app attaches GPS (`geolocator`). If it can't get a fix quickly, it uses
+  the last known position rather than delaying the alert.
+- The API texts every number in `OPS_ALERT_PHONES`. The message says who
+  raised it, which tour, both phone numbers, a map link and the message.
+- The other person on the tour gets a push notification, and the alert appears
+  on the admin SOS board.
+- When an admin acknowledges the alert, whoever raised it is notified.
+
+### Notifications
+
+Every notification is stored in the in-app inbox and pushed to the user's
+devices through Firebase Cloud Messaging (`PUSH_PROVIDER=fcm`). They are sent
+for:
+
+- booking confirmed, new booking (to the guide), booking cancelled;
+- tour started, tour completed (asks for a review);
+- a review reminder once, 20–48 hours after the tour;
+- SOS raised, SOS acknowledged;
+- guide approved, guide rejected;
+- dispute opened, dispute resolved.
+
+Sending a notification never fails the action that triggered it. Tokens that
+FCM reports as dead are deleted.
+
+To turn push on in the app, you need a Firebase project with an Android app
+and an iOS app. Then:
+
+1. `cp apps/mobile/firebase.example.json apps/mobile/firebase.json` and fill
+   in the values from the Firebase console. The file is git-ignored.
+2. Run with `flutter run --dart-define-from-file=firebase.json`. Without these
+   values the app builds normally, push is simply off, and the inbox still
+   works.
+3. **iOS:** upload your APNs key in Firebase. In Xcode, enable the *Push
+   Notifications* capability for the Runner target; the remote-notification
+   background mode is already in `Info.plist`.
+4. **API:** set `PUSH_PROVIDER=fcm` and `FIREBASE_SERVICE_ACCOUNT`.
+
+The mobile app has no remaining stubs. Its payment sheet, GPS and push all use
+real SDKs, with safe fallbacks when they aren't configured.
 
 ## Tests
 
 ```bash
-npm run api:test                     # 95 Jest tests: business rules + Moyasar, Mobishastra and Claude providers (mocked HTTP)
-cd apps/mobile && flutter test       # formatting, models, review screen, payment sheet selection and pay/confirm
+npm run api:test                     # 128 unit tests: business rules, availability, all providers (mocked HTTP)
+npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications
+cd apps/mobile && flutter test       # models, booking slots, payment sheet, license upload, SOS, inbox
 cd apps/admin && npx tsc --noEmit    # type-check the admin portal
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the same checks on every pull request
-and on pushes to `master`: API type-check, tests, build, migrations (up/down/up)
-and seed against a PostGIS service; admin type-check and build; Flutter analyze and test.
+and on pushes to `master`: API type-check, unit tests, build, migrations
+(up/down/up), seed and end-to-end tests against a PostGIS service; admin
+type-check and build; Flutter analyze and test.
 
 ## Not built yet
 
-Document upload (the license is a URL for now), a real KYC provider, automated guide payouts, push
-notifications and paging on SOS, guide availability calendars, payouts
-onboarding, multi-currency price filtering (`maxPriceMinor` and price sort
-compare raw minor units, so filter by city or country too), refresh tokens,
-and admin screens for disputes and SOS (the API endpoints already exist).
+A real KYC provider, automated guide payouts and payout onboarding,
+multi-currency price filtering (`maxPriceMinor` and price sort compare raw
+minor units, so filter by city or country too), refresh tokens, and PDF
+uploads from the app (the API already accepts PDFs; the app currently sends
+photos).
 
 ---
 
