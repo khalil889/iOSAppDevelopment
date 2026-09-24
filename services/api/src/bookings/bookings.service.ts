@@ -22,11 +22,13 @@ import {
   bookingEnd,
   cancellationRefundPercent,
   isParticipant,
+  isTourist,
   nextStatus,
   quotePrice,
 } from './booking.rules';
 import { BookingListQuery, CancelBookingDto, CreateBookingDto, SosDto } from './dto';
 import { SosAlert } from './sos-alert.entity';
+import { SosNotifier } from './sos-notifier';
 
 @Injectable()
 export class BookingsService {
@@ -38,6 +40,7 @@ export class BookingsService {
     private readonly guides: GuidesService,
     private readonly payments: PaymentsService,
     private readonly availability: AvailabilityService,
+    private readonly sosNotifier: SosNotifier,
   ) {}
 
   private get feePercent() {
@@ -231,9 +234,32 @@ export class BookingsService {
       location: dto.lat !== undefined && dto.lng !== undefined ? geoPoint(dto.lat, dto.lng) : null,
       message: dto.message ?? null,
     });
-    // Phase 1: log only. Hook a paging/notification provider here.
     this.logger.warn(`SOS ${alert.id} on booking ${id} by ${user.id} at ${JSON.stringify(alert.location?.coordinates ?? null)}`);
-    return { id: alert.id, createdAt: alert.createdAt, status: 'RECEIVED', message: 'Our safety team has been alerted.' };
+
+    const full = await this.db.getRepository(Booking).findOneOrFail({
+      where: { id },
+      relations: { tourist: true, guide: { user: true }, package: { city: true } },
+    });
+    const paged = await this.sosNotifier.notifyOps({
+      alertId: alert.id,
+      raisedBy: isTourist(booking, actor) ? 'tourist' : 'guide',
+      touristName: full.tourist.fullName,
+      touristPhone: full.tourist.phone,
+      guideName: full.guide.user.fullName,
+      guidePhone: full.guide.user.phone,
+      packageTitle: full.package.title,
+      city: full.package.city?.name ?? null,
+      lat: dto.lat,
+      lng: dto.lng,
+      message: dto.message,
+    });
+    return {
+      id: alert.id,
+      createdAt: alert.createdAt,
+      status: 'RECEIVED',
+      opsPaged: paged.sent > 0,
+      message: 'Our safety team has been alerted.',
+    };
   }
 
   // ------------------------------------------------------------- queries

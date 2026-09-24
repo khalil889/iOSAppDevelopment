@@ -7,6 +7,8 @@ export interface AppConfig {
   otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean };
   providers: { sms: string; payment: string; kyc: string; ai: string; storage: string };
   publicApiUrl: string;
+  /** E.164 numbers texted on every SOS alert. */
+  opsAlertPhones: string[];
   storage: { uploadDir: string };
   s3: {
     bucket: string;
@@ -67,6 +69,7 @@ export default (): AppConfig => ({
     storage: process.env.STORAGE_PROVIDER ?? 'local',
   },
   publicApiUrl: (process.env.PUBLIC_API_URL ?? `http://localhost:${int(process.env.PORT, 3000)}`).replace(/\/$/, ''),
+  opsAlertPhones: (process.env.OPS_ALERT_PHONES ?? '').split(',').map((p) => p.trim()).filter(Boolean),
   storage: { uploadDir: process.env.UPLOAD_DIR ?? 'uploads' },
   s3: {
     bucket: process.env.S3_BUCKET ?? '',
