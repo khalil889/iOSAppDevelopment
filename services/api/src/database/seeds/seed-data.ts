@@ -161,3 +161,18 @@ export const TOURISTS = [
 export const ADMIN = { name: 'Platform Admin', email: 'admin@tourguide.test', phone: '+966500000001' };
 
 export const PASSWORDS = { admin: 'Admin123!', default: 'Password123!' };
+
+/**
+ * Weekly hours per approved guide: [weekdays (0 = Sunday), 'HH:MM', 'HH:MM'].
+ * Friday is the weekend in Saudi Arabia, Egypt and Jordan.
+ */
+export const WEEKLY_HOURS: Record<string, Array<[number[], string, string]>> = {
+  faisal: [[[0, 1, 2, 3, 4, 6], '08:00', '21:00']],
+  noura: [[[0, 1, 2, 3, 4, 6], '07:00', '20:00']],
+  omar: [[[0, 1, 2, 3, 4], '09:00', '22:00'], [[6], '15:00', '23:00']],
+  mona: [[[0, 1, 2, 3, 4, 6], '06:00', '19:00']],
+  yousef: [[[0, 1, 2, 3, 4, 5, 6], '06:00', '18:00']],
+};
+
+/** Time off relative to seed day: [guide, startInDays, endInDays, reason] */
+export const TIME_OFF: Array<[string, number, number, string]> = [['faisal', 8, 9, 'Family event']];

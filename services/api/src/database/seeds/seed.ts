@@ -22,6 +22,8 @@ import {
   City,
   Country,
   Dispute,
+  GuideTimeOff,
+  GuideWeeklyHours,
   SosAlert,
   Guide,
   GuideVerificationEvent,
@@ -31,7 +33,8 @@ import {
   TourPackage,
   User,
 } from '../entities';
-import { ADMIN, CITIES, COUNTRIES, GUIDES, PASSWORDS, SITES, TOURISTS } from './seed-data';
+import { ADMIN, CITIES, COUNTRIES, GUIDES, PASSWORDS, SITES, TIME_OFF, TOURISTS, WEEKLY_HOURS } from './seed-data';
+import { toMinutes } from '../../availability/availability.rules';
 
 const FEE = Number(process.env.PLATFORM_FEE_PERCENT ?? 15);
 const HOUR = 3_600_000;
@@ -185,6 +188,20 @@ async function run() {
       );
     }
     packages.set(g.key, pkgs);
+  }
+
+  // --- Availability ----------------------------------------------------------
+  for (const [key, rules] of Object.entries(WEEKLY_HOURS)) {
+    const guideId = guides.get(key)!.id;
+    await ds.getRepository(GuideWeeklyHours).insert(
+      rules.flatMap(([days, start, end]) =>
+        days.map((weekday) => ({ guideId, weekday, startMinute: toMinutes(start), endMinute: toMinutes(end) })),
+      ),
+    );
+  }
+  for (const [key, from, to, reason] of TIME_OFF) {
+    const day = (n: number) => new Date(now.getTime() + n * 86_400_000).toISOString().slice(0, 10);
+    await ds.getRepository(GuideTimeOff).insert({ guideId: guides.get(key)!.id, startDate: day(from), endDate: day(to), reason });
   }
 
   // --- Bookings, payments, reviews -----------------------------------------

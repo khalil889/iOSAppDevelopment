@@ -5,6 +5,7 @@ import { geoPoint } from '../common/base.entity';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { BookingStatus, DisputeStatus, UserRole } from '../common/enums';
 import { DomainError } from '../common/errors/domain-error';
+import { AvailabilityService } from '../availability/availability.service';
 import { Dispute } from '../disputes/dispute.entity';
 import { Guide } from '../guides/guide.entity';
 import { GuidesService } from '../guides/guides.service';
@@ -36,6 +37,7 @@ export class BookingsService {
     private readonly config: ConfigService,
     private readonly guides: GuidesService,
     private readonly payments: PaymentsService,
+    private readonly availability: AvailabilityService,
   ) {}
 
   private get feePercent() {
@@ -59,17 +61,19 @@ export class BookingsService {
   }
 
   private async validateCandidate(user: AuthUser, dto: CreateBookingDto) {
-    const pkg = await this.db.getRepository(TourPackage).findOne({ where: { id: dto.packageId }, relations: { guide: true } });
+    const pkg = await this.db.getRepository(TourPackage).findOne({ where: { id: dto.packageId }, relations: { guide: true, city: true } });
     if (!pkg) throw new NotFoundException('Package not found');
     const tourist = await this.db.getRepository(User).findOneByOrFail({ id: user.id });
+    const startAt = new Date(dto.startAt);
     assertCanCreateBooking({
       tourist,
       guide: pkg.guide,
       pkg,
-      startAt: new Date(dto.startAt),
+      startAt,
       groupSize: dto.groupSize,
       now: new Date(),
     });
+    await this.availability.assertBookable(pkg.guideId, pkg.city.timezone, startAt, bookingEnd(startAt, pkg.durationMinutes));
     return { pkg, tourist };
   }
 

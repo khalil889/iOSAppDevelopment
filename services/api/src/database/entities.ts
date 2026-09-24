@@ -1,4 +1,5 @@
 import { OtpCode } from '../auth/otp-code.entity';
+import { GuideTimeOff, GuideWeeklyHours } from '../availability/availability.entities';
 import { Booking } from '../bookings/booking.entity';
 import { SosAlert } from '../bookings/sos-alert.entity';
 import { Dispute } from '../disputes/dispute.entity';
@@ -26,6 +27,8 @@ export const ENTITIES = [
   Payment,
   Review,
   Dispute,
+  GuideWeeklyHours,
+  GuideTimeOff,
 ];
 
 export {
@@ -42,4 +45,6 @@ export {
   Payment,
   Review,
   Dispute,
+  GuideWeeklyHours,
+  GuideTimeOff,
 };

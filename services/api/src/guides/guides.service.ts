@@ -68,9 +68,16 @@ export class GuidesService {
       );
     }
     if (q.date) {
+      // Not on time off, and either no weekly hours configured or working that weekday.
+      qb.andWhere(
+        `NOT EXISTS (SELECT 1 FROM guide_time_off t WHERE t."guideId" = g.id AND CAST(:date AS date) BETWEEN t."startDate" AND t."endDate")
+         AND (NOT EXISTS (SELECT 1 FROM guide_weekly_hours h WHERE h."guideId" = g.id)
+              OR EXISTS (SELECT 1 FROM guide_weekly_hours h WHERE h."guideId" = g.id AND h.weekday = EXTRACT(DOW FROM CAST(:date AS date))))`,
+        { date: q.date },
+      );
       qb.andWhere(
         `NOT EXISTS (SELECT 1 FROM bookings b WHERE b."guideId" = g.id
-                     AND b.status IN (:...busy) AND (b."startAt" AT TIME ZONE 'UTC')::date = :date)`,
+                     AND b.status IN (:...busy) AND CAST(b."startAt" AT TIME ZONE 'UTC' AS date) = CAST(:date AS date))`,
         { busy: [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS], date: q.date },
       );
     }

@@ -9,6 +9,7 @@ import { join } from 'path';
 import { AdminModule } from './admin/admin.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { AuthModule } from './auth/auth.module';
+import { AvailabilityModule } from './availability/availability.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module';
     GeoModule,
     GuidesModule,
     PackagesModule,
+    AvailabilityModule,
     PaymentsModule,
     BookingsModule,
     ReviewsModule,
