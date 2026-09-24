@@ -1,12 +1,15 @@
 import { Global, Logger, Module, Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AI_ASSISTANT } from './ai/ai-assistant.interface';
+import { AI_ASSISTANT, AiAssistant } from './ai/ai-assistant.interface';
+import { ClaudeAiAssistant } from './ai/claude-ai.assistant';
 import { StubAiAssistant } from './ai/stub-ai.assistant';
-import { KYC_PROVIDER } from './kyc/kyc-provider.interface';
+import { KYC_PROVIDER, KycProvider } from './kyc/kyc-provider.interface';
 import { StubKycProvider } from './kyc/stub-kyc.provider';
-import { PAYMENT_PROVIDER } from './payments/payment-provider.interface';
+import { MoyasarPaymentProvider } from './payments/moyasar-payment.provider';
+import { PAYMENT_PROVIDER, PaymentProvider } from './payments/payment-provider.interface';
 import { StubPaymentProvider } from './payments/stub-payment.provider';
-import { SMS_SENDER } from './sms/sms-sender.interface';
+import { MobishastraSmsSender } from './sms/mobishastra-sms.sender';
+import { SMS_SENDER, SmsSender } from './sms/sms-sender.interface';
 import { StubSmsSender } from './sms/stub-sms.sender';
 
 /**
@@ -14,7 +17,7 @@ import { StubSmsSender } from './sms/stub-sms.sender';
  * To plug in a real provider: implement the interface, add it to the map
  * below and set e.g. PAYMENT_PROVIDER=stripe.
  */
-function select<T>(token: symbol, configKey: string, impls: Record<string, new (...a: any[]) => T>): Provider {
+function select<T>(token: symbol, configKey: string, impls: Record<string, new (config: ConfigService) => T>): Provider {
   return {
     provide: token,
     inject: [ConfigService],
@@ -23,7 +26,7 @@ function select<T>(token: symbol, configKey: string, impls: Record<string, new (
       const Impl = impls[name];
       if (!Impl) throw new Error(`Unknown ${configKey} "${name}". Available: ${Object.keys(impls).join(', ')}`);
       new Logger('Providers').log(`${configKey} -> ${name}`);
-      return new Impl();
+      return new Impl(config);
     },
   };
 }
@@ -31,10 +34,10 @@ function select<T>(token: symbol, configKey: string, impls: Record<string, new (
 @Global()
 @Module({
   providers: [
-    select(PAYMENT_PROVIDER, 'providers.payment', { stub: StubPaymentProvider }),
-    select(KYC_PROVIDER, 'providers.kyc', { stub: StubKycProvider }),
-    select(SMS_SENDER, 'providers.sms', { stub: StubSmsSender }),
-    select(AI_ASSISTANT, 'providers.ai', { stub: StubAiAssistant }),
+    select<PaymentProvider>(PAYMENT_PROVIDER, 'providers.payment', { stub: StubPaymentProvider, moyasar: MoyasarPaymentProvider }),
+    select<KycProvider>(KYC_PROVIDER, 'providers.kyc', { stub: StubKycProvider }),
+    select<SmsSender>(SMS_SENDER, 'providers.sms', { stub: StubSmsSender, mobishastra: MobishastraSmsSender }),
+    select<AiAssistant>(AI_ASSISTANT, 'providers.ai', { stub: StubAiAssistant, claude: ClaudeAiAssistant }),
   ],
   exports: [PAYMENT_PROVIDER, KYC_PROVIDER, SMS_SENDER, AI_ASSISTANT],
 })
