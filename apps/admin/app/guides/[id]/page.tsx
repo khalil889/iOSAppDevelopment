@@ -5,15 +5,16 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { RequireAdmin } from '@/components/RequireAdmin';
 import { StatusBadge } from '@/components/StatusBadge';
-import { AdminGuide, adminApi, fmtDate } from '@/lib/api';
+import { AdminGuide, adminApi } from '@/lib/api';
+import { MessageKey, useI18n } from '@/lib/i18n';
 
 type Mode = null | 'reject' | 'suspend';
 
-const REJECT_TEMPLATES = [
-  'License scan is unreadable — please upload a clearer photo.',
-  'License number not found in the national tourism registry.',
-  'Name on the license does not match the account name.',
-  'License has expired — please submit a renewed license.',
+const REJECT_TEMPLATES: MessageKey[] = [
+  'guide.template.unreadable',
+  'guide.template.notInRegistry',
+  'guide.template.nameMismatch',
+  'guide.template.expired',
 ];
 
 function Detail() {
@@ -25,6 +26,7 @@ function Detail() {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const { t, label, dir, formatDate, formatDay, languageName } = useI18n();
 
   const load = useCallback(() => {
     adminApi.guide(id).then(setGuide).catch((e) => setError(e.message));
@@ -47,15 +49,17 @@ function Detail() {
     }
   }
 
-  if (!guide) return <div className="muted">{error ?? 'Loading…'}</div>;
+  if (!guide) return <div className="muted">{error ?? t('common.loading')}</div>;
 
   const expired = guide.licenseExpiresAt ? new Date(`${guide.licenseExpiresAt}T23:59:59Z`) < new Date() : false;
   const pending = guide.verificationStatus === 'PENDING';
+  const identity = guide.identityStatus ?? 'NOT_STARTED';
+  const identityOk = identity === 'APPROVED';
 
   return (
     <>
       <Link href="/guides" className="muted small">
-        ← Back to queue
+        {t('guide.back')}
       </Link>
       <div className="page-head">
         <div className="who big">
@@ -72,17 +76,21 @@ function Detail() {
 
       <div className="grid">
         <section className="card">
-          <h3>License</h3>
+          <h3>{t('guide.license')}</h3>
           <dl>
-            <dt>Number</dt>
-            <dd className="mono">{guide.licenseNumber ?? '—'}</dd>
-            <dt>Issuing country</dt>
-            <dd>{guide.licenseCountry?.name ?? '—'}</dd>
-            <dt>Expires</dt>
+            <dt>{t('guide.number')}</dt>
             <dd>
-              {guide.licenseExpiresAt ?? '—'} {expired && <span className="badge bad">expired</span>}
+              <span className="mono ltr" dir="ltr">
+                {guide.licenseNumber ?? '—'}
+              </span>
             </dd>
-            <dt>Document</dt>
+            <dt>{t('guide.issuingCountry')}</dt>
+            <dd>{guide.licenseCountry?.name ?? '—'}</dd>
+            <dt>{t('guide.expires')}</dt>
+            <dd>
+              {formatDay(guide.licenseExpiresAt)} {expired && <span className="badge bad">{t('guide.expired')}</span>}
+            </dd>
+            <dt>{t('guide.document')}</dt>
             <dd>
               {guide.licenseDocumentDownloadUrl ? (
                 <button
@@ -93,125 +101,184 @@ function Detail() {
                     window.open(fresh.licenseDocumentDownloadUrl ?? undefined, '_blank', 'noopener');
                   }}
                 >
-                  View uploaded scan ↗
+                  {t('guide.viewScan')}
                 </button>
               ) : guide.licenseDocumentUrl ? (
                 <a href={guide.licenseDocumentUrl} target="_blank" rel="noreferrer">
-                  Open linked scan ↗
+                  {t('guide.openScan')}
                 </a>
               ) : (
-                <span className="muted">not provided</span>
+                <span className="muted">{t('guide.notProvided')}</span>
               )}
             </dd>
-            <dt>Submitted</dt>
-            <dd>{fmtDate(guide.submittedAt)}</dd>
+            <dt>{t('guide.submitted')}</dt>
+            <dd>{formatDate(guide.submittedAt)}</dd>
           </dl>
         </section>
 
         <section className="card">
           <h3>
-            Automated check <StatusBadge status={guide.kycStatus} />
+            {t('guide.check')} <StatusBadge kind="kyc" status={guide.kycStatus} />
           </h3>
           {guide.kycResult ? (
             <>
               <p className="muted small">
-                Provider <b>{guide.kycResult.provider}</b> · score {Math.round(guide.kycResult.score * 100)}% · ref{' '}
-                <span className="mono">{guide.kycReference}</span>
+                {t('guide.provider')} <b>{guide.kycResult.provider}</b> · {t('guide.score', { score: Math.round(guide.kycResult.score * 100) })} ·{' '}
+                {t('guide.ref')}{' '}
+                <span className="mono ltr" dir="ltr">
+                  {guide.kycReference}
+                </span>
               </p>
               <ul className="checks">
                 {Object.entries(guide.kycResult.checks).map(([k, c]) => (
                   <li key={k} className={c.passed ? 'pass' : 'fail'}>
-                    <span>{c.passed ? '✓' : '✕'}</span> {k.replace(/_/g, ' ')}
+                    <span>{c.passed ? '✓' : '✕'}</span> {label('kycCheck', k)}
                     {c.detail && !c.passed && <span className="muted small"> — {c.detail}</span>}
                   </li>
                 ))}
               </ul>
-              <p className="muted small">Automated results are advisory; the decision is yours.</p>
+              <p className="muted small">{t('guide.advisory')}</p>
             </>
           ) : (
-            <p className="muted">No check has been run.</p>
+            <p className="muted">{t('guide.noCheck')}</p>
           )}
         </section>
 
         <section className="card">
-          <h3>Contact</h3>
+          <h3>
+            {t('identity.title')} <StatusBadge kind="identityStatus" status={identity} />
+          </h3>
           <dl>
-            <dt>Email</dt>
-            <dd>{guide.user.email ?? '—'}</dd>
-            <dt>Phone</dt>
+            <dt>{t('identity.checked')}</dt>
+            <dd>{formatDate(guide.identityCheckedAt)}</dd>
+            {!!guide.identityReview?.labels?.length && (
+              <>
+                <dt>{t('identity.labels')}</dt>
+                <dd>
+                  <div className="chips">
+                    {guide.identityReview.labels.map((l) => (
+                      <span key={l} className="badge bad nocap" title={l}>
+                        {label('identityLabel', l)}
+                      </span>
+                    ))}
+                  </div>
+                </dd>
+              </>
+            )}
+            {guide.identityReview?.comment && (
+              <>
+                <dt>{t('identity.comment')}</dt>
+                <dd>
+                  <bdi>{guide.identityReview.comment}</bdi>
+                </dd>
+              </>
+            )}
+          </dl>
+          <p className="muted small">{t('identity.help')}</p>
+        </section>
+
+        <section className="card">
+          <h3>{t('guide.contact')}</h3>
+          <dl>
+            <dt>{t('guide.email')}</dt>
             <dd>
-              {guide.user.phone ?? '—'}{' '}
-              {guide.user.phoneVerifiedAt ? <span className="badge ok">verified</span> : <span className="badge warn">unverified</span>}
+              <span className="ltr" dir="ltr">
+                {guide.user.email ?? '—'}
+              </span>
+            </dd>
+            <dt>{t('guide.phone')}</dt>
+            <dd>
+              <span className="ltr" dir="ltr">
+                {guide.user.phone ?? '—'}
+              </span>{' '}
+              {guide.user.phoneVerifiedAt ? (
+                <span className="badge ok">{t('guide.verified')}</span>
+              ) : (
+                <span className="badge warn">{t('guide.unverified')}</span>
+              )}
             </dd>
           </dl>
         </section>
 
         <section className="card">
-          <h3>Profile</h3>
+          <h3>{t('guide.profile')}</h3>
           <dl>
-            <dt>Languages</dt>
-            <dd>{guide.languages.map((l) => l.toUpperCase()).join(', ') || '—'}</dd>
-            <dt>Experience</dt>
-            <dd>{guide.yearsOfExperience} years</dd>
-            <dt>Cities</dt>
-            <dd>{guide.cities.map((c) => c.name).join(', ') || '—'}</dd>
-            <dt>Sites</dt>
-            <dd>{guide.sites?.map((s) => s.name).join(', ') || '—'}</dd>
+            <dt>{t('guide.languages')}</dt>
+            <dd>{guide.languages.map((l) => languageName(l)).join(t('common.listSep')) || '—'}</dd>
+            <dt>{t('guide.experience')}</dt>
+            <dd>{t('guide.years', { n: guide.yearsOfExperience })}</dd>
+            <dt>{t('guide.cities')}</dt>
+            <dd>{guide.cities.map((c) => c.name).join(t('common.listSep')) || '—'}</dd>
+            <dt>{t('guide.sites')}</dt>
+            <dd>{guide.sites?.map((s) => s.name).join(t('common.listSep')) || '—'}</dd>
           </dl>
-          {guide.bio && <p className="bio">{guide.bio}</p>}
+          {guide.bio && (
+            <p className="bio" dir="auto">
+              {guide.bio}
+            </p>
+          )}
         </section>
       </div>
 
       <section className="card decision">
-        <h3>Decision</h3>
+        <h3>{t('guide.decision')}</h3>
         {guide.rejectionReason && !pending && (
           <p>
-            <b>Reason on file:</b> {guide.rejectionReason}
+            <b>{t('guide.reasonOnFile')}</b> <bdi>{guide.rejectionReason}</bdi>
           </p>
         )}
 
         {pending && mode === null && (
-          <div className="row">
-            <input
-              placeholder="Optional note for the audit log"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <button
-              className="btn primary"
-              disabled={busy || expired}
-              title={expired ? 'License has expired' : ''}
-              onClick={() => act(() => adminApi.approve(guide.id, note || undefined), 'Guide approved — they can now receive bookings.')}
-            >
-              ✓ Approve
-            </button>
-            <button className="btn danger" disabled={busy} onClick={() => setMode('reject')}>
-              ✕ Reject
-            </button>
-          </div>
+          <>
+            <div className="row">
+              <input
+                placeholder={t('guide.notePlaceholder')}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <button
+                className="btn primary"
+                disabled={busy || expired}
+                title={expired ? t('guide.licenseExpired') : ''}
+                aria-describedby={identityOk ? undefined : 'identity-hint'}
+                onClick={() => act(() => adminApi.approve(guide.id, note || undefined), t('guide.approved'))}
+              >
+                {t('guide.approve')}
+              </button>
+              <button className="btn danger" disabled={busy} onClick={() => setMode('reject')}>
+                {t('guide.reject')}
+              </button>
+            </div>
+            {!identityOk && (
+              <p className="alert neutral small" id="identity-hint">
+                {t('identity.requiredHint', { status: label('identityStatus', identity) })}
+              </p>
+            )}
+          </>
         )}
 
         {guide.verificationStatus === 'APPROVED' && mode === null && (
           <button className="btn danger ghost" onClick={() => setMode('suspend')}>
-            Suspend guide
+            {t('guide.suspend')}
           </button>
         )}
 
         {mode && (
           <div className="stack">
             <label>
-              {mode === 'reject' ? 'Rejection reason (shown to the guide)' : 'Suspension reason'}
+              {mode === 'reject' ? t('guide.rejectReason') : t('guide.suspendReason')}
               <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
             </label>
             {mode === 'reject' && (
               <div className="chips">
-                {REJECT_TEMPLATES.map((t) => (
-                  <button key={t} type="button" className="chip" onClick={() => setReason(t)}>
-                    {t}
+                {REJECT_TEMPLATES.map((key) => (
+                  <button key={key} type="button" className="chip" onClick={() => setReason(t(key))}>
+                    {t(key)}
                   </button>
                 ))}
               </div>
             )}
+            {reason.length > 0 && reason.trim().length < 5 && <p className="muted small">{t('guide.reasonTooShort')}</p>}
             <div className="row">
               <button
                 className="btn danger"
@@ -219,30 +286,34 @@ function Detail() {
                 onClick={() =>
                   act(
                     () => (mode === 'reject' ? adminApi.reject(guide.id, reason) : adminApi.suspend(guide.id, reason)),
-                    mode === 'reject' ? 'Guide rejected — they can fix and resubmit.' : 'Guide suspended.',
+                    mode === 'reject' ? t('guide.rejected') : t('guide.suspended'),
                   )
                 }
               >
-                Confirm {mode}
+                {mode === 'reject' ? t('guide.confirmReject') : t('guide.confirmSuspend')}
               </button>
               <button className="btn ghost" onClick={() => setMode(null)}>
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
         )}
-        {!pending && guide.verificationStatus !== 'APPROVED' && <p className="muted">No actions available for this status.</p>}
+        {!pending && guide.verificationStatus !== 'APPROVED' && <p className="muted">{t('guide.noActions')}</p>}
       </section>
 
       <section className="card">
-        <h3>History</h3>
+        <h3>{t('guide.history')}</h3>
         <ol className="timeline">
           {(guide.history ?? []).map((h) => (
             <li key={h.id}>
-              <span className="muted small">{fmtDate(h.createdAt)}</span>
+              <span className="muted small">{formatDate(h.createdAt)}</span>
               <div>
-                <StatusBadge status={h.fromStatus} /> → <StatusBadge status={h.toStatus} />
-                {h.note && <div className="small">{h.note}</div>}
+                <StatusBadge status={h.fromStatus} /> {dir === 'rtl' ? '←' : '→'} <StatusBadge status={h.toStatus} />
+                {h.note && (
+                  <div className="small" dir="auto">
+                    {h.note}
+                  </div>
+                )}
               </div>
             </li>
           ))}

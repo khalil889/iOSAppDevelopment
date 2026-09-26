@@ -20,11 +20,18 @@ export function presentGuide(g: Guide, extra: { fromPriceMinor?: number | null; 
     license: {
       number: maskLicense(g.licenseNumber),
       country: g.licenseCountry?.name ?? null,
+      countryAr: g.licenseCountry?.nameAr ?? null,
       expiresAt: g.licenseExpiresAt,
     },
     ratingAvg: g.ratingAvg,
     ratingCount: g.ratingCount,
-    cities: (g.cities ?? []).map((c) => ({ id: c.id, name: c.name, country: c.country?.name })),
+    cities: (g.cities ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      nameAr: c.nameAr,
+      country: c.country?.name,
+      countryAr: c.country?.nameAr ?? null,
+    })),
     fromPriceMinor: extra.fromPriceMinor ?? null,
     currency: extra.currency ?? null,
   };

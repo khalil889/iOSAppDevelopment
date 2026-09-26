@@ -18,5 +18,41 @@ services:
       timeout: 5s
       retries: 10
 
+  # Full stack: `docker compose --profile app up --build`.
+  # Runs with stub providers for local trials; production settings live in .env.
+  api:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: ${API_NODE_ENV:-development}
+      DATABASE_URL: postgres://${POSTGRES_USER:-tourguide}:${POSTGRES_PASSWORD:-tourguide}@postgres:5432/${POSTGRES_DB:-tourguide}
+      UPLOAD_DIR: /data/uploads
+    ports:
+      - "${API_PORT:-3000}:3000"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  admin:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api}
+        NEXT_PUBLIC_DEMO_HINT: ${NEXT_PUBLIC_DEMO_HINT:-true}
+    ports:
+      - "${ADMIN_PORT:-3001}:3001"
+    depends_on:
+      - api
+
 volumes:
   pgdata:
+  uploads:

@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, OneToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
 import { BaseEntity } from '../common/base.entity';
 import { EscrowStatus } from '../common/enums';
 import type { Booking } from '../bookings/booking.entity';
@@ -51,4 +51,13 @@ export class Payment extends BaseEntity {
 
   @Column({ type: 'text', nullable: true })
   failureReason: string | null;
+
+  /** Payout that covers `releasedMinor` (null = still owed to the guide). */
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  payoutId: string | null;
+
+  @ManyToOne('Payout', { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'payoutId' })
+  payout?: unknown;
 }

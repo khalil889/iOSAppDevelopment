@@ -58,7 +58,15 @@ export class PaymentWebhooksController {
 
     const payment = await this.payments.findByProviderRef(ref);
     if (!payment) {
-      this.logger.warn(`Webhook ${event.type} for unknown payment ${ref}`);
+      // A charge we don't track (e.g. an abandoned 3-D Secure attempt that later
+      // completed after the tourist paid with another card): refund it.
+      if (event.type === 'payment_paid' || event.type === 'payment_captured') {
+        const refunded = await this.payments.refundOrphan(ref).catch((e) => {
+          this.logger.error(`Orphan refund failed for ${ref}: ${(e as Error).message}`);
+          return false;
+        });
+        this.logger.warn(`Webhook ${event.type} for untracked payment ${ref}${refunded ? ' — refunded' : ''}`);
+      }
       return { received: true };
     }
 

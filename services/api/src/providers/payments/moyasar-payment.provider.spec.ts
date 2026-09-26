@@ -96,7 +96,7 @@ describe('MoyasarPaymentProvider', () => {
   it('treats gateway 4xx errors as a failed payment and rejects malformed ids without calling out', async () => {
     const http = fakeFetch([{ status: 404, body: { type: 'api_error', message: 'Object not found' } }]);
     const res = await new MoyasarPaymentProvider(config, http.fn).hold({ ...expected, paymentMethodToken: PAYMENT_ID });
-    expect(res).toMatchObject({ status: 'failed', failureReason: 'Object not found' });
+    expect(res).toMatchObject({ status: 'failed', failureReason: 'The payment could not be verified. Please try again.' });
 
     const none = fakeFetch([]);
     const bad = await new MoyasarPaymentProvider(config, none.fn).hold({ ...expected, paymentMethodToken: '../admin' });

@@ -11,6 +11,7 @@ import {
   BookingStatus,
   EscrowStatus,
   GuideVerificationStatus,
+  IdentityStatus,
   KycStatus,
   UserRole,
 } from '../../common/enums';
@@ -34,7 +35,11 @@ import {
   User,
 } from '../entities';
 import { ADMIN, CITIES, COUNTRIES, GUIDES, PASSWORDS, SITES, TIME_OFF, TOURISTS, WEEKLY_HOURS } from './seed-data';
+import { CITIES_AR, COUNTRIES_AR, PACKAGES_AR, SITES_AR } from './seed-data.ar';
 import { toMinutes } from '../../availability/availability.rules';
+import { maskIban } from '../../payouts/iban';
+import { PayoutAccount } from '../../payouts/payout.entities';
+import { SecretBox } from '../../payouts/secret-box';
 
 const FEE = Number(process.env.PLATFORM_FEE_PERCENT ?? 15);
 const HOUR = 3_600_000;
@@ -46,6 +51,10 @@ async function reset(ds: DataSource) {
 }
 
 async function run() {
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PRODUCTION !== 'yes') {
+    // The seed TRUNCATES every table and creates demo accounts with known passwords.
+    throw new Error('Refusing to seed with NODE_ENV=production (set SEED_ALLOW_PRODUCTION=yes to override)');
+  }
   const ds = await dataSource.initialize();
   await ds.runMigrations();
   await reset(ds);
@@ -53,7 +62,7 @@ async function run() {
 
   // --- Geography ---------------------------------------------------------
   const countries = new Map<string, Country>();
-  for (const c of COUNTRIES) countries.set(c.code, await ds.getRepository(Country).save(c));
+  for (const c of COUNTRIES) countries.set(c.code, await ds.getRepository(Country).save({ ...c, nameAr: COUNTRIES_AR[c.code] }));
 
   const cities = new Map<string, City>();
   for (const c of CITIES) {
@@ -61,6 +70,7 @@ async function run() {
       c.key,
       await ds.getRepository(City).save({
         name: c.name,
+        nameAr: CITIES_AR[c.key],
         countryId: countries.get(c.country)!.id,
         location: geoPoint(c.lat, c.lng),
         timezone: c.tz,
@@ -74,7 +84,9 @@ async function run() {
       s.key,
       await ds.getRepository(Site).save({
         name: s.name,
+        nameAr: SITES_AR[s.key]?.name,
         description: s.description,
+        descriptionAr: SITES_AR[s.key]?.description,
         category: s.category,
         cityId: cities.get(s.city)!.id,
         location: geoPoint(s.lat, s.lng),
@@ -156,6 +168,9 @@ async function run() {
       kycStatus: { clear: KycStatus.CLEAR, consider: KycStatus.CONSIDER, failed: KycStatus.FAILED }[check.status],
       kycReference: check.reference,
       kycResult: { provider: kyc.name, score: check.score, checks: check.checks },
+      // Layla hasn't done the ID + selfie check yet, so she can't be approved.
+      identityStatus: g.key === 'layla' ? IdentityStatus.NOT_STARTED : IdentityStatus.APPROVED,
+      identityCheckedAt: g.key === 'layla' ? null : submittedAt,
       cities: g.cities.map((k) => cities.get(k)!),
       sites: g.sites.map((k) => sites.get(k)!),
     });
@@ -176,7 +191,9 @@ async function run() {
           guideId: guide.id,
           cityId: cities.get(p.city)!.id,
           title: p.title,
+          titleAr: PACKAGES_AR[p.title]?.title,
           description: p.description,
+          descriptionAr: PACKAGES_AR[p.title]?.description,
           durationMinutes: p.durationMinutes,
           pricingType: p.pricingType,
           priceMinor: p.priceMinor,
@@ -203,6 +220,24 @@ async function run() {
     const day = (n: number) => new Date(now.getTime() + n * 86_400_000).toISOString().slice(0, 10);
     await ds.getRepository(GuideTimeOff).insert({ guideId: guides.get(key)!.id, startDate: day(from), endDate: day(to), reason });
   }
+
+  // --- Payout accounts (Noura has none, so payout runs skip her) -----------
+  const box = new SecretBox(process.env.PAYOUT_ENC_KEY ?? 'dev-only-payout-key');
+  for (const [key, holderName, iban, bankName] of [
+    ['faisal', 'Faisal Al-Harbi', 'SA0380000000608010167519', 'Al Rajhi Bank'],
+    ['mona', 'Mona Hassan', 'EG380019000500000000263180002', 'Banque Misr'],
+  ]) {
+    const guideId = guides.get(key)!.id;
+    await ds.getRepository(PayoutAccount).insert({
+      guideId,
+      holderName,
+      bankName,
+      ibanSealed: box.seal(iban, guideId),
+      ibanMasked: maskIban(iban),
+    });
+  }
+  // Past the 24h hold that applies to new or changed bank details.
+  await ds.query(`UPDATE payout_accounts SET "createdAt" = now() - interval '30 days', "updatedAt" = now() - interval '30 days'`);
 
   // --- Bookings, payments, reviews -----------------------------------------
   const bookingRepo = ds.getRepository(Booking);

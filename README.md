@@ -11,7 +11,7 @@ apps/
 services/
   api/        NestJS REST API — PostgreSQL + PostGIS (TypeORM)
 infra/        Postgres init scripts
-docker-compose.yml   PostGIS 16
+docker-compose.yml   PostGIS 16 (+ api and admin containers with --profile app)
 ```
 
 ## Quick start
@@ -35,7 +35,7 @@ flutter run --dart-define=API_URL=http://10.0.2.2:3000/api   # Android emulator
 
 | Role | Login | Password | What to try |
 | --- | --- | --- | --- |
-| Admin | admin@tourguide.test | `Admin123!` | Approve Khalid, reject Layla; acknowledge the open SOS; resolve the open dispute |
+| Admin | admin@tourguide.test | `Admin123!` | Overview dashboard; run a SAR payout (Noura is skipped: no bank account); approve Khalid (Layla needs an identity check first); acknowledge the open SOS; resolve the open dispute |
 | Tourist | sara@example.com | `Password123!` | Live tour + SOS, review the AlUla tour, upcoming booking, inbox |
 | Guide | faisal@guides.test | `Password123!` | Dashboard, availability (has a day off next week), live tour → *Complete tour* |
 
@@ -90,17 +90,17 @@ has a unit test next to it:
 
 | Area | Endpoints |
 | --- | --- |
-| Auth | `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `GET /auth/me` |
+| Auth | `PATCH /auth/me` (language) · `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/logout-all` · `GET /auth/me` |
 | Explore | `GET /countries` · `GET /cities` · `GET /sites?q&countryId&cityId&category&lat&lng&radiusKm` · `GET /sites/:id` |
-| Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/license-upload` · `POST /guides/me/application` · `GET /guides/me/dashboard` |
+| Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/license-upload` · `POST /guides/me/application` · `GET /guides/me/dashboard` · `POST /guides/me/identity` · `GET /guides/me/earnings` · `GET/PUT /guides/me/payout-account` |
 | Availability | `GET /availability/slots?packageId&date` · `GET/PUT /guides/me/availability` |
-| Packages | `GET /packages/:id` · `GET /packages/mine` · `POST /packages` · `PATCH /packages/:id` |
+| Packages | `GET /packages/:id` · `GET /packages/mine` · `POST /packages` · `PATCH /packages/:id` · `POST /packages/photo-upload` |
 | Bookings | `POST /bookings/quote` · `POST /bookings` · `GET /bookings` · `GET /bookings/:id` · `POST /bookings/:id/pay` · `/pay/confirm` · `/start` · `/complete` · `/cancel` · `/sos` |
 | Payments | `GET /payments/config` (provider + publishable key) · `POST /payments/webhooks/moyasar` |
 | Reviews / disputes | `POST /bookings/:id/review` · `POST /bookings/:id/disputes` · `GET /disputes/mine` |
 | Assistant | `POST /assistant/chat` |
 | Notifications | `POST /me/devices` · `POST /me/devices/unregister` · `GET /me/notifications` · `POST /me/notifications/read` |
-| Admin | `GET /admin/guides?status` · `GET /admin/guides/counts` · `GET /admin/guides/:id` · `POST /admin/guides/:id/approve` · `/reject` · `/suspend` · `GET /admin/disputes` · `GET /admin/disputes/:id` · `POST /admin/disputes/:id/resolve` · `GET /admin/sos?status` · `GET /admin/sos/counts` · `POST /admin/sos/:id/acknowledge` · `POST /admin/payments/release-due` |
+| Admin | `GET /admin/guides?status` · `GET /admin/guides/counts` · `GET /admin/guides/:id` · `POST /admin/guides/:id/approve` · `/reject` · `/suspend` · `GET /admin/disputes` · `GET /admin/disputes/:id` · `POST /admin/disputes/:id/resolve` · `GET /admin/sos?status` · `GET /admin/sos/counts` · `POST /admin/sos/:id/acknowledge` · `POST /admin/payments/release-due` · `GET /admin/analytics?days&currency` · `GET /admin/payouts/owed` · `GET/POST /admin/payouts/runs` · `GET /admin/payouts/runs/:id` · `/export` (CSV) · `POST /admin/payouts/:id/paid` · `/failed` |
 
 Rule violations come back with a stable error code, for example
 `{"statusCode":409,"error":"SLOT_UNAVAILABLE","message":"..."}`.
@@ -272,12 +272,126 @@ and an iOS app. Then:
 The mobile app has no remaining stubs. Its payment sheet, GPS and push all use
 real SDKs, with safe fallbacks when they aren't configured.
 
+## Guide tours, payouts, identity and analytics
+
+- **Guides manage their tours** in the app (*Dashboard → My tours*). They
+  can write in English and Arabic, choose cities from their profile and sites
+  in the tour's city, set price and duration, add up to six photos (signed
+  uploads) and pause a tour.
+- **Identity checks.** An admin can approve a guide only after the guide
+  passes an ID and selfie check. With `IDENTITY_PROVIDER=sumsub` the app opens
+  Sumsub's hosted WebSDK (`POST /guides/me/identity`). Sumsub then reports the
+  result to `/api/identity/webhooks/sumsub`, signed with an HMAC of the raw
+  body. The stub provider approves straight away.
+- **Payouts.**
+  - Guides add an IBAN under *Earnings & payouts*. It is validated, encrypted
+    with `PAYOUT_ENC_KEY` and shown only masked.
+  - When escrow is released, the guide's share is owed. On the admin
+    *Payouts* page you create a run per currency and download the bank CSV
+    (full IBANs, admins only).
+  - After the transfers, mark each payout paid (the guide is notified) or
+    failed (its payments go back into the next run).
+  - A payment can't be in two payouts.
+- **Analytics.** The admin *Overview* shows GMV, platform revenue, bookings and
+  conversion against the previous period, refunds, escrow, a daily series,
+  top cities and guides, and the guide funnel. Figures are per currency, with
+  no FX conversion.
+
+## Arabic and right-to-left
+
+Both apps run in English or Arabic, with fully mirrored layouts.
+
+- **Mobile.** Strings live in `apps/mobile/lib/l10n/app_{en,ar}.arb` (gen-l10n,
+  with Arabic plural forms). The app follows the device language until the user
+  picks one under *Account → Language*. The choice is saved on the profile too.
+  Dates use Arabic month names with Western digits. Phone numbers, times and
+  card numbers stay left-to-right.
+- **Admin.** A typed dictionary in `apps/admin/lib/i18n.tsx` (TypeScript fails
+  if Arabic misses a key), with an English / العربية toggle in the top bar.
+- **API.** Clients send `Accept-Language`, and for `ar` the API:
+  - returns the Arabic names and descriptions of countries, cities, sites and
+    tours (`nameAr`, `descriptionAr`, `titleAr` columns, falling back to
+    English when empty);
+  - translates domain and auth error messages. Validation errors from DTOs
+    stay in English.
+  - Endpoints that feed edit forms opt out with `@RawContent()` and return
+    both languages.
+- **Notifications and SMS.** Push and inbox notifications are written in each
+  recipient's saved language (`PATCH /auth/me {"locale": "ar"}`). So are OTP
+  texts. Mobishastra receives Arabic as UTF-8, so check Arabic delivery on
+  your account before launch; some routes need Unicode enabled.
+
+## Running in production
+
+### Containers
+
+```bash
+docker build -f services/api/Dockerfile -t tourguide-api .
+docker build -f apps/admin/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api -t tourguide-admin .
+docker compose --profile app up --build      # whole stack locally, stub providers
+```
+
+Build both images from the repo root, because the workspaces share one lockfile.
+The API image runs `node dist/main.js` as a non-root user. It applies pending
+migrations on boot (`DB_RUN_MIGRATIONS=true`), writes JSON logs and has a
+health check on `/api/health/live`. The admin image is a standalone Next.js
+server on port 3001. Its `NEXT_PUBLIC_*` values are compiled in, so pass them as
+build args.
+
+### Checklist
+
+With `NODE_ENV=production`, the API **refuses to start** if any of these is
+still set to a development default:
+
+- a weak `JWT_SECRET`;
+- stub payments or SMS;
+- local file storage;
+- localhost CORS origins;
+- a non-https `PUBLIC_API_URL`;
+- Moyasar without `MOYASAR_WEBHOOK_SECRET`.
+
+In production it also turns off Swagger (set `ENABLE_SWAGGER=true` to keep it)
+and OTP echo.
+
+- Behind a load balancer, set `TRUST_PROXY=true` so rate limits see real
+  client IPs.
+- Set `SMS_ALLOWED_PREFIXES` to the countries you serve.
+- `/api/health` checks the database and reports pending migrations; use it as
+  the readiness probe. Use `/api/health/live` for liveness.
+- Every response carries an `x-request-id`, and the same id appears on the
+  request's log line.
+- Never run the seed against production. It wipes tables and refuses to run
+  unless `SEED_ALLOW_PRODUCTION=yes`.
+
+### Security model
+
+- **Sessions.** Access tokens are HS256 JWTs that last 15 minutes. Each
+  request re-checks the user's role and active flag, with a 30-second cache.
+  Refresh tokens rotate on every use and are stored only as SHA-256 hashes.
+  Replaying an old refresh token revokes that whole login family.
+  `POST /auth/logout-all` ends every session.
+- **Where tokens live.** The mobile app keeps tokens in the Keychain/Keystore
+  (`flutter_secure_storage`). The admin portal keeps them in `sessionStorage`,
+  behind a strict CSP.
+- **Password login.** It locks after `LOGIN_MAX_ATTEMPTS` failures for
+  `LOGIN_LOCKOUT_MINUTES`; signing in with a phone code clears the lock.
+- **Phone codes (OTP).**
+  - A code is single-use, and its attempts are counted atomically.
+  - Each phone is capped at 5 codes and 10 wrong guesses per hour.
+  - Admin accounts can't sign in with a phone code alone.
+- **Money.** Refunds and releases atomically claim the escrow (`SETTLING`)
+  first, so a race between a cancel, a dispute and a release can't pay out
+  twice. Payments that arrive for cancelled or unknown bookings are refunded.
+- **Rate limits.** They are per IP and kept in memory, so with several API
+  instances the effective limit is multiplied. A shared Redis store for the
+  throttler is a planned follow-up.
+
 ## Tests
 
 ```bash
-npm run api:test                     # 128 unit tests: business rules, availability, all providers (mocked HTTP)
-npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications
-cd apps/mobile && flutter test       # models, booking slots, payment sheet, license upload, SOS, inbox
+npm run api:test                     # 165 unit tests: business rules, availability, all providers (mocked HTTP)
+npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications, sessions, races, Arabic, tours, payouts, identity, analytics
+cd apps/mobile && flutter test       # models, booking slots, payment sheet, license upload, SOS, inbox, Arabic/RTL
 cd apps/admin && npx tsc --noEmit    # type-check the admin portal
 ```
 
@@ -288,9 +402,10 @@ type-check and build; Flutter analyze and test.
 
 ## Not built yet
 
-A real KYC provider, automated guide payouts and payout onboarding,
+Automatic bank transfers (payout runs produce a CSV for the bank portal;
+Moyasar/bank payout APIs can plug in later), automated license registry checks,
 multi-currency price filtering (`maxPriceMinor` and price sort compare raw
-minor units, so filter by city or country too), refresh tokens, and PDF
+minor units, so filter by city or country too), and PDF
 uploads from the app (the API already accepts PDFs; the app currently sends
 photos).
 

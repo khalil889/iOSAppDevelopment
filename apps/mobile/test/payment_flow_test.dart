@@ -8,6 +8,8 @@ import 'package:tourguide_mobile/core/api_client.dart';
 import 'package:tourguide_mobile/models/models.dart';
 import 'package:tourguide_mobile/services/payment_sheet.dart';
 import 'package:tourguide_mobile/services/repository.dart';
+import 'package:tourguide_mobile/l10n/l10n.dart';
+import 'package:tourguide_mobile/main.dart' show localizationsDelegates;
 
 Map<String, dynamic> _booking(String status) => {
       'id': 'b1',
@@ -36,6 +38,8 @@ const _request = PaymentRequest(bookingId: 'b1', amountMinor: 45000, currency: '
 Future<List<String?>> _openSheet(WidgetTester tester, PaymentSheet sheet) async {
   final result = <String?>[];
   await tester.pumpWidget(MaterialApp(
+    localizationsDelegates: localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Builder(
       builder: (context) => ElevatedButton(
         onPressed: () async => result.add(await sheet.collect(context, _request)),

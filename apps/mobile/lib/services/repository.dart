@@ -7,7 +7,7 @@ class Repository {
   final ApiClient api;
 
   // ---- Auth ---------------------------------------------------------------
-  Future<({String token, AppUser user, String? devCode})> register({
+  Future<AuthResult> register({
     required String email,
     required String password,
     required String fullName,
@@ -19,15 +19,18 @@ class Repository {
       'password': password,
       'fullName': fullName,
       'phone': phone,
+      'locale': api.language,
       'role': role == UserRole.guide ? 'GUIDE' : 'TOURIST',
     });
-    return (token: j['accessToken'] as String, user: AppUser.fromJson(j['user']), devCode: j['devCode'] as String?);
+    return AuthResult.fromJson(j);
   }
 
-  Future<({String token, AppUser user})> login(String email, String password) async {
-    final j = await api.post('/auth/login', {'email': email, 'password': password});
-    return (token: j['accessToken'] as String, user: AppUser.fromJson(j['user']));
-  }
+  Future<AuthResult> login(String email, String password) async =>
+      AuthResult.fromJson(await api.post('/auth/login', {'email': email, 'password': password}));
+
+  Future<void> logout(String refreshToken) => api.post('/auth/logout', {'refreshToken': refreshToken});
+
+  Future<void> logoutAll() => api.post('/auth/logout-all');
 
   /// Returns the code in dev mode (OTP_DEV_ECHO=true) for convenience.
   Future<String?> requestOtp(String phone, {bool login = true}) async {
@@ -35,16 +38,19 @@ class Repository {
     return j['devCode'] as String?;
   }
 
-  Future<({String token, AppUser user})> verifyOtp(String phone, String code, {bool login = true}) async {
+  Future<AuthResult> verifyOtp(String phone, String code, {bool login = true}) async {
     final j = await api.post('/auth/otp/verify', {
       'phone': phone,
       'code': code,
       'purpose': login ? 'LOGIN' : 'VERIFY_PHONE',
     });
-    return (token: j['accessToken'] as String, user: AppUser.fromJson(j['user']));
+    return AuthResult.fromJson(j);
   }
 
   Future<AppUser> me() async => AppUser.fromJson(await api.get('/auth/me'));
+
+  /// Language for this user's notifications and SMS.
+  Future<void> updateLocale(String locale) => api.patch('/auth/me', {'locale': locale});
 
   // ---- Explore ------------------------------------------------------------
   Future<List<City>> cities() async => (await api.get('/cities') as List).map((c) => City.fromJson(c)).toList();
@@ -156,7 +162,33 @@ class Repository {
       api.post('/bookings/$bookingId/disputes', {'reason': reason, 'description': description});
 
   // ---- Guide --------------------------------------------------------------
-  Future<GuideDashboard> dashboard() async => GuideDashboard.fromJson(await api.get('/guides/me/dashboard'));
+  /// The dashboard plus the identity-check fields from `/guides/me` (the
+  /// dashboard payload doesn't carry them). A failing `/guides/me` only hides
+  /// the identity card; it doesn't break the dashboard.
+  Future<GuideDashboard> dashboard() async {
+    final results = await Future.wait([
+      api.get('/guides/me/dashboard'),
+      api.get('/guides/me').then<dynamic>((j) => j, onError: (Object _) => null),
+    ]);
+    final profile = results[1];
+    return GuideDashboard.fromJson(results[0], profile: profile is Map<String, dynamic> ? profile : null);
+  }
+
+  /// Starts (or resumes) the ID + selfie check. Open [IdentityCheck.url] when set;
+  /// the result then arrives by webhook, so re-read the dashboard afterwards.
+  Future<IdentityCheck> startIdentityCheck() async => IdentityCheck.fromJson(await api.post('/guides/me/identity'));
+
+  // ---- Earnings & payouts ---------------------------------------------------
+  Future<GuideEarnings> earnings() async => GuideEarnings.fromJson(await api.get('/guides/me/earnings'));
+
+  /// Saves the bank account; [iban] should already be normalized (no spaces,
+  /// upper case). Returns the stored account with the IBAN masked.
+  Future<PayoutAccount> savePayoutAccount({required String holderName, required String iban, String? bankName}) async =>
+      PayoutAccount.fromJson(await api.put('/guides/me/payout-account', {
+        'holderName': holderName,
+        'iban': iban,
+        if (bankName != null && bankName.isNotEmpty) 'bankName': bankName,
+      }));
 
   /// Uploads a license scan to private storage and returns its storage key.
   Future<String> uploadLicense(List<int> bytes, String contentType) async {
@@ -178,6 +210,48 @@ class Repository {
         'licenseExpiresAt': expiresAt,
         if (documentKey != null) 'licenseDocumentKey': documentKey,
       });
+
+  // ---- Guide tours ---------------------------------------------------------
+  /// The signed-in guide's tours in both languages (not translated by the API).
+  Future<List<GuideTour>> myTours() async => (await api.get('/packages/mine') as List)
+      .map((p) => GuideTour.fromJson(Map<String, dynamic>.from(p)))
+      .toList();
+
+  Future<GuideTour> createTour(TourInput input) async =>
+      GuideTour.fromJson(await api.post('/packages', input.toJson()));
+
+  /// Sends only [fields], e.g. `{'isActive': false}`, or a full [TourInput.toJson].
+  Future<GuideTour> updateTour(String id, Map<String, dynamic> fields) async =>
+      GuideTour.fromJson(await api.patch('/packages/$id', fields));
+
+  /// Uploads one tour photo to storage and returns the key for `photoKeys`.
+  Future<String> uploadTourPhoto(List<int> bytes, String contentType) async {
+    final signed = await api.post('/packages/photo-upload', {'contentType': contentType, 'sizeBytes': bytes.length});
+    final headers = Map<String, String>.from(signed['headers'] as Map);
+    await api.uploadBytes(signed['uploadUrl'] as String, bytes, headers);
+    return signed['key'] as String;
+  }
+
+  /// Cities on the guide's profile, with each country's currency. `/guides/me`
+  /// returns the cities without their country, so they're matched against
+  /// `/cities` (which includes it and is translated for the UI language).
+  Future<List<TourCity>> myTourCities() async {
+    final results = await Future.wait([api.get('/guides/me'), api.get('/cities')]);
+    final me = results[0] as Map;
+    final all = {
+      for (final c in results[1] as List) (c as Map)['id']: TourCity.fromJson(Map<String, dynamic>.from(c)),
+    };
+    return [
+      for (final c in me['cities'] as List? ?? const [])
+        all[(c as Map)['id']] ?? TourCity.fromJson(Map<String, dynamic>.from(c)),
+    ];
+  }
+
+  /// Sites of one city for the tour form (names follow the UI language).
+  Future<List<TourSite>> citySites(String cityId) async {
+    final j = await api.get('/sites', query: {'cityId': cityId, 'limit': 50});
+    return (j['items'] as List).map((s) => TourSite.fromJson(Map<String, dynamic>.from(s))).toList();
+  }
 
   // ---- Notifications ------------------------------------------------------
   Future<void> registerDevice(String token, String platform) =>

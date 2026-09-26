@@ -9,6 +9,7 @@ import 'package:tourguide_mobile/core/api_client.dart';
 import 'package:tourguide_mobile/models/models.dart';
 import 'package:tourguide_mobile/screens/tourist/review_screen.dart';
 import 'package:tourguide_mobile/services/repository.dart';
+import 'helpers.dart';
 
 Booking _completedBooking() => Booking.fromJson({
       'id': 'booking-1',
@@ -27,7 +28,7 @@ Widget _app(http.Client client, Booking booking) {
   final repo = Repository(ApiClient(httpClient: client, baseUrl: 'http://api.test'));
   return Provider.value(
     value: repo,
-    child: MaterialApp(home: ReviewScreen(booking: booking)),
+    child: localizedApp(ReviewScreen(booking: booking)),
   );
 }
 

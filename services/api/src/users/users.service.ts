@@ -20,7 +20,7 @@ export class UsersService {
   findByEmailWithPassword(email: string) {
     return this.users
       .createQueryBuilder('u')
-      .addSelect('u.passwordHash')
+      .addSelect(['u.passwordHash', 'u.failedLoginCount', 'u.lockedUntil'])
       .where('u.email = :email', { email })
       .getOne();
   }

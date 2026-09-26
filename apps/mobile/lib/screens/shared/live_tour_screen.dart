@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 
 import '../../core/format.dart';
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../../models/models.dart';
 import '../../services/location_service.dart';
 import '../../services/repository.dart';
@@ -66,12 +68,9 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           icon: const Icon(Icons.support_agent, size: 44),
-          title: const Text('Help is on the way'),
-          content: const Text(
-            'Our safety team has been alerted with your booking details'
-            ' and will contact you right away.\n\nIf you are in immediate danger, call local emergency services.',
-          ),
-          actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          title: Text(ctx.l10n.liveSosSentTitle),
+          content: Text(ctx.l10n.liveSosSentBody),
+          actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(ctx.l10n.ok))],
         ),
       );
     } catch (e) {
@@ -97,7 +96,7 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
   Widget build(BuildContext context) {
     final b = _booking;
     return Scaffold(
-      appBar: AppBar(title: Text(b?.isLive == true ? 'Live tour' : 'Tour details')),
+      appBar: AppBar(title: Text(b?.isLive == true ? context.l10n.liveTitleLive : context.l10n.liveTitleDetails)),
       body: b == null
           ? (_error != null ? ErrorView(error: _error!, onRetry: _load) : const Center(child: CircularProgressIndicator()))
           : RefreshIndicator(onRefresh: _load, child: _body(b)),
@@ -108,6 +107,7 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
     final session = context.watch<Session>();
     final isGuide = session.isGuide;
     final t = Theme.of(context).textTheme;
+    final l10n = context.l10n;
     final other = isGuide ? b.tourist : b.guide;
     final sosAvailable = b.isLive || b.status == BookingStatus.confirmed;
 
@@ -116,21 +116,25 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
       children: [
         _statusBanner(b),
         const SizedBox(height: 16),
-        Text(b.package?.title ?? 'Tour', style: t.headlineSmall),
+        Text(b.package?.title ?? l10n.liveTourFallback, style: t.headlineSmall),
         const SizedBox(height: 4),
-        Text('${formatDateTime(b.startAt)} – ${formatDateTime(b.endAt).split(', ').last} · ${b.groupSize} traveller(s)'),
+        Text(l10n.liveScheduleLine(
+          formatDateTime(b.startAt),
+          _ltr(formatDateTime(b.endAt).split(', ').last),
+          l10n.liveTravellers(b.groupSize),
+        )),
         const SizedBox(height: 12),
         Card(
           child: ListTile(
             leading: Avatar(name: other?.name ?? '', url: other?.avatarUrl),
             title: Text(other?.name ?? ''),
-            subtitle: Text(isGuide ? 'Your traveller · ${other?.phone ?? ''}' : 'Your licensed guide · ${other?.phone ?? ''}'),
+            subtitle: Text(isGuide ? l10n.liveYourTraveller(_ltr(other?.phone ?? '')) : l10n.liveYourGuide(_ltr(other?.phone ?? ''))),
             trailing: const Icon(Icons.phone_outlined),
           ),
         ),
         if (b.package?.sites.isNotEmpty == true) ...[
           const SizedBox(height: 12),
-          Text('Stops', style: t.titleMedium),
+          Text(l10n.liveStops, style: t.titleMedium),
           for (final (i, s) in b.package!.sites.indexed)
             ListTile(
               dense: true,
@@ -140,21 +144,21 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
         ],
         if (b.notes?.isNotEmpty == true) ...[
           const SizedBox(height: 8),
-          Text('Notes: ${b.notes}', style: t.bodySmall),
+          Text(l10n.liveNotes(b.notes!), style: t.bodySmall),
         ],
         const SizedBox(height: 24),
         if (isGuide && b.status == BookingStatus.confirmed)
           FilledButton.icon(
-            onPressed: _busy ? null : () => _guideAction(() => context.read<Repository>().startTour(b.id), 'Tour started'),
+            onPressed: _busy ? null : () => _guideAction(() => context.read<Repository>().startTour(b.id), l10n.liveTourStarted),
             icon: const Icon(Icons.play_arrow),
-            label: const Text('Start tour'),
+            label: Text(l10n.liveStartTour),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           ),
         if (isGuide && b.isLive)
           FilledButton.icon(
-            onPressed: _busy ? null : () => _guideAction(() => context.read<Repository>().completeTour(b.id), 'Tour completed — payout scheduled'),
+            onPressed: _busy ? null : () => _guideAction(() => context.read<Repository>().completeTour(b.id), l10n.liveTourCompleted),
             icon: const Icon(Icons.flag),
-            label: const Text('Complete tour'),
+            label: Text(l10n.liveCompleteTour),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           ),
         if (sosAvailable) ...[
@@ -162,7 +166,7 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
           Center(child: _SosButton(onPressed: _sos)),
           const SizedBox(height: 8),
           Text(
-            'Press and hold for 1 second to alert our 24/7 safety team.',
+            l10n.liveSosHint,
             textAlign: TextAlign.center,
             style: t.bodySmall,
           ),
@@ -186,9 +190,10 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
             Row(children: [
               Icon(Icons.circle, size: 12, color: scheme.error),
               const SizedBox(width: 8),
-              Text('LIVE', style: TextStyle(fontWeight: FontWeight.bold, color: scheme.onErrorContainer)),
+              Text(context.l10n.liveBadge, style: TextStyle(fontWeight: FontWeight.bold, color: scheme.onErrorContainer)),
               const Spacer(),
               Text(
+                textDirection: TextDirection.ltr,
                 '${two(elapsed.inHours)}:${two(elapsed.inMinutes % 60)}:${two(elapsed.inSeconds % 60)}',
                 style: TextStyle(fontFeatures: const [FontFeature.tabularFigures()], color: scheme.onErrorContainer, fontSize: 20),
               ),
@@ -202,12 +207,15 @@ class _LiveTourScreenState extends State<LiveTourScreen> {
     return Card(
       child: ListTile(
         leading: const Icon(Icons.event_available),
-        title: Text(b.status.label),
-        subtitle: Text(b.escrowStatus != null ? 'Payment: ${titleCase(b.escrowStatus!)}' : ''),
+        title: Text(context.l10n.bookingStatus(b.status)),
+        subtitle: Text(b.escrowStatus != null ? context.l10n.livePaymentStatus(context.l10n.escrowStatus(b.escrowStatus!)) : ''),
       ),
     );
   }
 }
+
+/// Keeps phone numbers and times left-to-right inside Arabic text.
+String _ltr(String s) => s.isEmpty ? s : '\u2066$s\u2069';
 
 /// Large red button that requires a 1-second hold to avoid accidental alerts.
 class _SosButton extends StatefulWidget {
@@ -237,7 +245,7 @@ class _SosButtonState extends State<_SosButton> with SingleTickerProviderStateMi
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'SOS emergency alert. Press and hold.',
+      label: context.l10n.liveSosSemantics,
       child: GestureDetector(
         onTapDown: (_) => _hold.forward(),
         onTapUp: (_) => _hold.reverse(),
@@ -261,7 +269,14 @@ class _SosButtonState extends State<_SosButton> with SingleTickerProviderStateMi
                   boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2)],
                 ),
                 alignment: Alignment.center,
-                child: const Text('SOS', style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900)),
+                padding: const EdgeInsets.all(12),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    context.l10n.liveSosButton,
+                    style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900),
+                  ),
+                ),
               ),
             ],
           ),
@@ -289,20 +304,21 @@ class _SosDialogState extends State<_SosDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
       icon: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 40),
-      title: const Text('Send SOS alert?'),
+      title: Text(l10n.liveSosDialogTitle),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('We will share your booking and location with our safety team.'),
+        Text(l10n.liveSosDialogBody),
         const SizedBox(height: 12),
-        TextField(controller: _msg, decoration: const InputDecoration(labelText: "What's happening? (optional)")),
+        TextField(controller: _msg, decoration: InputDecoration(labelText: l10n.liveSosMessageLabel)),
       ]),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: Colors.red),
           onPressed: () => Navigator.pop(context, _msg.text.trim()),
-          child: const Text('Send SOS'),
+          child: Text(l10n.liveSosSend),
         ),
       ],
     );

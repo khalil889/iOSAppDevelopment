@@ -10,6 +10,7 @@ import 'package:tourguide_mobile/core/session.dart';
 import 'package:tourguide_mobile/screens/shared/live_tour_screen.dart';
 import 'package:tourguide_mobile/services/location_service.dart';
 import 'package:tourguide_mobile/services/repository.dart';
+import 'helpers.dart';
 
 void main() {
   testWidgets('holding SOS and confirming sends the GPS position and message', (tester) async {
@@ -48,7 +49,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => Session(api, repo)),
         Provider<LocationService>.value(value: StubLocationService((lat: 24.7339, lng: 46.5755))),
       ],
-      child: const MaterialApp(home: LiveTourScreen(bookingId: 'b1')),
+      child: localizedApp(const LiveTourScreen(bookingId: 'b1')),
     ));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));

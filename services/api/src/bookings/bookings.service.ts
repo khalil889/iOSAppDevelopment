@@ -151,6 +151,12 @@ export class BookingsService {
     if (booking.status === BookingStatus.PENDING_PAYMENT) {
       const outcome = await this.payments.verifyPending(booking);
       if (outcome?.status === 'held') await this.confirmPaid(booking);
+    } else if (booking.status === BookingStatus.CANCELLED) {
+      // 3-D Secure finished after the booking was cancelled: give the money back.
+      const outcome = await this.payments.verifyPending(booking);
+      if (outcome?.status === 'held') {
+        await this.payments.settle(booking, 100, 'Booking was cancelled before payment completed');
+      }
     }
     return user ? { booking: await this.get(user, id) } : null;
   }
@@ -164,7 +170,16 @@ export class BookingsService {
       .getRepository(Booking)
       .update({ id: booking.id, status: BookingStatus.PENDING_PAYMENT }, { status: BookingStatus.CONFIRMED, paymentDueAt: null });
     // Only the call that actually flipped the status notifies (app + webhook can race).
-    if (res.affected) await this.notify.confirmed(booking.id);
+    if (res.affected) {
+      await this.notify.confirmed(booking.id);
+      return;
+    }
+    // Lost a race with a cancellation: the money is held on a cancelled booking.
+    const current = await this.load(booking.id);
+    if (current.status === BookingStatus.CANCELLED) {
+      await this.payments.settle(current, 100, 'Booking was cancelled while payment was completing').catch(() => undefined);
+      throw new DomainError('BOOKING_CANCELLED', 'This booking was cancelled; your payment has been refunded.', 'conflict');
+    }
   }
 
   /** Payment arrived after the hold lapsed: keep it if the slot is still free, otherwise refund. */
@@ -193,7 +208,8 @@ export class BookingsService {
   async start(user: AuthUser, id: string) {
     const booking = await this.load(id);
     const to = nextStatus(booking, 'start', await this.actor(user), new Date());
-    await this.db.getRepository(Booking).update({ id }, { status: to, startedAt: new Date() });
+    const res = await this.db.getRepository(Booking).update({ id, status: booking.status }, { status: to, startedAt: new Date() });
+    if (!res.affected) throw new DomainError('BOOKING_CHANGED', 'This booking was just updated. Refresh and try again.', 'conflict');
     await this.notify.started(id);
     return this.get(user, id);
   }
@@ -203,7 +219,8 @@ export class BookingsService {
     const now = new Date();
     const to = nextStatus(booking, 'complete', await this.actor(user), now);
     await this.db.transaction(async (tx) => {
-      await tx.getRepository(Booking).update({ id }, { status: to, completedAt: now });
+      const res = await tx.getRepository(Booking).update({ id, status: booking.status }, { status: to, completedAt: now });
+      if (!res.affected) throw new DomainError('BOOKING_CHANGED', 'This booking was just updated. Refresh and try again.', 'conflict');
       await this.payments.scheduleRelease(id, now, tx);
     });
     await this.notify.completed(id);
@@ -217,10 +234,12 @@ export class BookingsService {
     const to = nextStatus(booking, 'cancel', actor, now);
     const refundPercent = cancellationRefundPercent(booking, actor, now);
 
-    await this.db.getRepository(Booking).update(
-      { id },
+    // Conditional on the status we validated, so two concurrent cancels can't both proceed.
+    const res = await this.db.getRepository(Booking).update(
+      { id, status: booking.status },
       { status: to, cancelledAt: now, cancelledById: user.id, cancellationReason: dto.reason ?? null, paymentDueAt: null },
     );
+    if (!res.affected) throw new DomainError('BOOKING_CHANGED', 'This booking was just updated. Refresh and try again.', 'conflict');
     await this.payments.settle(booking, refundPercent, `Cancelled: ${dto.reason ?? 'no reason given'}`);
     await this.notify.cancelled(id, isTourist(booking, actor) ? 'tourist' : actor.role === UserRole.ADMIN ? 'admin' : 'guide', refundPercent);
     return { booking: await this.get(user, id), refundPercent };
@@ -234,6 +253,23 @@ export class BookingsService {
     }
     if (![BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS].includes(booking.status)) {
       throw new DomainError('TOUR_NOT_ACTIVE', 'SOS is only available for upcoming or live tours');
+    }
+    // Confirmed tours: only close to the tour (2h before start until 2h after the planned end).
+    const nowMs = Date.now();
+    if (
+      booking.status === BookingStatus.CONFIRMED &&
+      (nowMs < booking.startAt.getTime() - 2 * 3_600_000 || nowMs > booking.endAt.getTime() + 2 * 3_600_000)
+    ) {
+      throw new DomainError('TOUR_NOT_ACTIVE', 'SOS is available from 2 hours before the tour. For emergencies call local services.');
+    }
+    // Each alert texts the ops team; cap repeats per booking.
+    const recent = await this.db
+      .getRepository(SosAlert)
+      .createQueryBuilder('a')
+      .where('a.bookingId = :id AND a.createdAt > :since', { id, since: new Date(nowMs - 10 * 60_000) })
+      .getCount();
+    if (recent >= 3) {
+      throw new DomainError('SOS_RATE_LIMITED', 'Your alerts were received and our team is responding.', 'conflict');
     }
     const alert = await this.db.getRepository(SosAlert).save({
       bookingId: id,
@@ -300,8 +336,15 @@ export class BookingsService {
           }),
         ])
       : [[], []];
-    const items = bookings.map((b) => ({
+    const items = bookings.map(({ tourist, guide, ...b }) => ({
       ...b,
+      // Only what the counterpart needs: never emails or account fields.
+      tourist: tourist && { id: tourist.id, fullName: tourist.fullName, phone: tourist.phone, avatarUrl: tourist.avatarUrl },
+      guide: guide && {
+        id: guide.id,
+        userId: guide.userId,
+        user: { id: guide.user.id, fullName: guide.user.fullName, phone: guide.user.phone, avatarUrl: guide.user.avatarUrl },
+      },
       review: reviews.find((r) => r.bookingId === b.id) ?? null,
       openDispute: disputes.find((d) => d.bookingId === b.id) ?? null,
     }));

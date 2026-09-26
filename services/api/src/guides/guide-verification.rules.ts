@@ -1,5 +1,5 @@
 import { DomainError } from '../common/errors/domain-error';
-import { GuideVerificationStatus } from '../common/enums';
+import { GuideVerificationStatus, IdentityStatus } from '../common/enums';
 import { isLicenseExpired } from '../bookings/booking.rules';
 
 const S = GuideVerificationStatus;
@@ -12,7 +12,12 @@ export function assertCanSubmitApplication(status: GuideVerificationStatus): voi
 }
 
 export function assertCanApprove(
-  guide: { verificationStatus: GuideVerificationStatus; licenseNumber: string | null; licenseExpiresAt: string | null },
+  guide: {
+    verificationStatus: GuideVerificationStatus;
+    licenseNumber: string | null;
+    licenseExpiresAt: string | null;
+    identityStatus: IdentityStatus;
+  },
   now: Date,
 ): void {
   if (guide.verificationStatus !== S.PENDING) {
@@ -23,6 +28,9 @@ export function assertCanApprove(
   }
   if (isLicenseExpired(guide.licenseExpiresAt, now)) {
     throw new DomainError('LICENSE_EXPIRED', 'Guide license has expired');
+  }
+  if (guide.identityStatus !== IdentityStatus.APPROVED) {
+    throw new DomainError('IDENTITY_NOT_VERIFIED', 'The guide has not passed identity verification yet');
   }
 }
 

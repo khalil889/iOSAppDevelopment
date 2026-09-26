@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { RequireAdmin } from '@/components/RequireAdmin';
 import { StatusBadge } from '@/components/StatusBadge';
-import { AdminGuide, adminApi, Paginated, timeAgo, VerificationStatus } from '@/lib/api';
+import { AdminGuide, adminApi, Paginated, VerificationStatus } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 
 const TABS: VerificationStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'];
 
@@ -14,6 +15,7 @@ function Queue() {
   const params = useSearchParams();
   const status = (params.get('status') as VerificationStatus) || 'PENDING';
   const page = Number(params.get('page') ?? 1);
+  const { t, label, timeAgo, formatDate } = useI18n();
 
   const [data, setData] = useState<Paginated<AdminGuide> | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -38,28 +40,28 @@ function Queue() {
     <>
       <div className="page-head">
         <div>
-          <h2>Guide verification</h2>
-          <p className="muted">Review license submissions. Oldest first.</p>
+          <h2>{t('guides.title')}</h2>
+          <p className="muted">{t('guides.subtitle')}</p>
         </div>
         <button className="btn ghost" onClick={load}>
-          Refresh
+          {t('common.refresh')}
         </button>
       </div>
 
       <div className="tabs">
-        {TABS.map((t) => (
-          <button key={t} className={t === status ? 'tab active' : 'tab'} onClick={() => go(t)}>
-            {t.toLowerCase()} <span className="count">{counts[t] ?? 0}</span>
+        {TABS.map((s) => (
+          <button key={s} className={s === status ? 'tab active' : 'tab'} onClick={() => go(s)}>
+            {label('verification', s)} <span className="count">{counts[s] ?? 0}</span>
           </button>
         ))}
       </div>
 
       {error && <div className="alert bad">{error}</div>}
-      {!data && !error && <div className="muted">Loading…</div>}
+      {!data && !error && <div className="muted">{t('common.loading')}</div>}
 
       {data && data.items.length === 0 && (
         <div className="empty card">
-          {status === 'PENDING' ? '🎉 The queue is empty — no guides waiting for review.' : 'No guides with this status.'}
+          {status === 'PENDING' ? t('guides.emptyPending') : t('guides.emptyOther')}
         </div>
       )}
 
@@ -67,12 +69,12 @@ function Queue() {
         <table className="table card">
           <thead>
             <tr>
-              <th>Guide</th>
-              <th>License</th>
-              <th>Country</th>
-              <th>Automated check</th>
-              <th>Cities</th>
-              <th>Submitted</th>
+              <th>{t('guides.col.guide')}</th>
+              <th>{t('guides.col.license')}</th>
+              <th>{t('guides.col.country')}</th>
+              <th>{t('guides.col.check')}</th>
+              <th>{t('guides.col.cities')}</th>
+              <th>{t('guides.col.submitted')}</th>
               <th />
             </tr>
           </thead>
@@ -84,21 +86,27 @@ function Queue() {
                     {g.user.avatarUrl ? <img src={g.user.avatarUrl} alt="" /> : <div className="avatar" />}
                     <div>
                       <strong>{g.user.fullName}</strong>
-                      <div className="muted small">{g.user.email}</div>
+                      <div className="muted small ltr" dir="ltr">
+                        {g.user.email}
+                      </div>
                     </div>
                   </div>
                 </td>
-                <td className="mono">{g.licenseNumber ?? '—'}</td>
+                <td>
+                  <span className="mono ltr" dir="ltr">
+                    {g.licenseNumber ?? '—'}
+                  </span>
+                </td>
                 <td>{g.licenseCountry?.name ?? '—'}</td>
                 <td>
-                  <StatusBadge status={g.kycStatus} />
+                  <StatusBadge kind="kyc" status={g.kycStatus} />
                   {g.kycResult && <span className="muted small"> {Math.round(g.kycResult.score * 100)}%</span>}
                 </td>
-                <td>{g.cities.map((c) => c.name).join(', ') || '—'}</td>
-                <td title={g.submittedAt ?? ''}>{timeAgo(g.submittedAt)}</td>
+                <td>{g.cities.map((c) => c.name).join(t('common.listSep')) || '—'}</td>
+                <td title={formatDate(g.submittedAt)}>{timeAgo(g.submittedAt)}</td>
                 <td>
                   <Link href={`/guides/${g.id}`} className="btn small" onClick={(e) => e.stopPropagation()}>
-                    Review →
+                    {t('guides.review')}
                   </Link>
                 </td>
               </tr>
@@ -110,13 +118,13 @@ function Queue() {
       {pages > 1 && (
         <div className="pager">
           <button className="btn ghost small" disabled={page <= 1} onClick={() => go(status, page - 1)}>
-            ← Prev
+            {t('common.prev')}
           </button>
           <span className="muted small">
-            Page {page} of {pages}
+            {t('common.pageOf', { page, pages })}
           </span>
           <button className="btn ghost small" disabled={page >= pages} onClick={() => go(status, page + 1)}>
-            Next →
+            {t('common.next')}
           </button>
         </div>
       )}

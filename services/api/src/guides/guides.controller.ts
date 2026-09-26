@@ -1,16 +1,21 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
 import { GuideSearchQuery, LicenseUploadDto, SubmitApplicationDto, UpdateGuideProfileDto } from './dto';
 import { GuidesService } from './guides.service';
+import { IdentityService } from './identity.service';
 
 @ApiTags('guides')
 @Controller('guides')
 export class GuidesController {
-  constructor(private readonly guides: GuidesService) {}
+  constructor(
+    private readonly guides: GuidesService,
+    private readonly identity: IdentityService,
+  ) {}
 
   /** Verified guides only. See GuideSearchQuery for filters. */
   @Public()
@@ -39,6 +44,15 @@ export class GuidesController {
   @Post('me/license-upload')
   licenseUpload(@CurrentUser() user: AuthUser, @Body() dto: LicenseUploadDto) {
     return this.guides.createLicenseUpload(user.id, dto);
+  }
+
+  /** Starts ID + selfie verification: returns a hosted link to open. */
+  @ApiBearerAuth()
+  @Roles(UserRole.GUIDE)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('me/identity')
+  startIdentity(@CurrentUser() user: AuthUser) {
+    return this.identity.start(user.id);
   }
 
   @ApiBearerAuth()

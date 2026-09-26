@@ -11,6 +11,10 @@ export class Country extends BaseEntity {
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
+  /** Arabic name; sent instead of `name` to clients that ask for Arabic. */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  nameAr: string | null;
+
   /** ISO 4217 default currency for packages in this country */
   @Column({ type: 'char', length: 3 })
   currency: string;

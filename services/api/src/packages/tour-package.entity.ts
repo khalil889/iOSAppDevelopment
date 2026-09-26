@@ -29,6 +29,13 @@ export class TourPackage extends BaseEntity {
   @Column({ type: 'text', default: '' })
   description: string;
 
+  /** Arabic title/description written by the guide (optional). */
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  titleAr: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  descriptionAr: string | null;
+
   @Column({ type: 'int' })
   durationMinutes: number;
 
@@ -50,6 +57,10 @@ export class TourPackage extends BaseEntity {
 
   @Column({ default: true })
   isActive: boolean;
+
+  /** Storage keys of the tour photos, in display order (first = cover). */
+  @Column({ type: 'text', array: true, default: '{}' })
+  photoKeys: string[];
 
   @ManyToMany('Site')
   @JoinTable({ name: 'tour_package_sites', joinColumn: { name: 'packageId' }, inverseJoinColumn: { name: 'siteId' } })

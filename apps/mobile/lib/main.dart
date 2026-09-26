@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'core/api_client.dart';
 import 'core/inbox_controller.dart';
+import 'core/locale_controller.dart';
 import 'core/session.dart';
+import 'l10n/l10n.dart';
 import 'screens/home_shell.dart';
 import 'screens/shared/push_listener.dart';
 import 'services/location_service.dart';
@@ -16,7 +20,14 @@ Future<void> main() async {
   final api = ApiClient();
   final repo = Repository(api);
   final push = await FirebasePushService.create();
+  await initializeDateFormatting();
+  final locale = LocaleController(api);
+  await locale.restore();
   final session = Session(api, repo, push: push)..restore();
+  // Notifications and SMS are sent in the language saved on the profile.
+  locale.onChanged = (code) async {
+    if (session.isSignedIn) await repo.updateLocale(code);
+  };
 
   runApp(
     MultiProvider(
@@ -24,6 +35,7 @@ Future<void> main() async {
         Provider.value(value: repo),
         Provider<PushService>.value(value: push),
         ChangeNotifierProvider.value(value: session),
+        ChangeNotifierProvider.value(value: locale),
         ChangeNotifierProvider(create: (_) => InboxController(repo)),
         Provider<LocationService>(create: (_) => GeolocatorLocationService()),
         Provider<PaymentSheet>(create: (_) => ConfiguredPaymentSheet(repo)),
@@ -46,11 +58,20 @@ class TourGuideApp extends StatelessWidget {
           inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
         );
 
+    final locale = context.watch<LocaleController>();
     return MaterialApp(
       navigatorKey: appNavigatorKey,
       scaffoldMessengerKey: appMessengerKey,
-      title: 'TourGuide',
+      onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
+      locale: locale.override,
+      supportedLocales: LocaleController.supported,
+      localizationsDelegates: localizationsDelegates,
+      localeListResolutionCallback: (device, _) {
+        final resolved = locale.resolve(device);
+        locale.sync(resolved);
+        return resolved;
+      },
       theme: theme(Brightness.light),
       darkTheme: theme(Brightness.dark),
       home: const _Root(),
@@ -68,6 +89,15 @@ class _Root extends StatelessWidget {
     if (session.restoring) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return PushListener(child: HomeShell(key: ValueKey(session.user?.id ?? 'guest')));
+    // Re-keyed on language too, so every screen reloads translated content.
+    final language = Localizations.localeOf(context).languageCode;
+    return PushListener(child: HomeShell(key: ValueKey('${session.user?.id ?? 'guest'}/$language')));
   }
 }
+
+const localizationsDelegates = <LocalizationsDelegate<Object>>[
+  AppLocalizations.delegate,
+  GlobalMaterialLocalizations.delegate,
+  GlobalWidgetsLocalizations.delegate,
+  GlobalCupertinoLocalizations.delegate,
+];

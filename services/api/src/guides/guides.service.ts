@@ -18,6 +18,7 @@ import { GuideVerificationEvent } from './guide-verification-event.entity';
 import { assertCanSubmitApplication } from './guide-verification.rules';
 import { Guide } from './guide.entity';
 import { presentGuide, PublicGuide } from './guide.presenter';
+import { withPhotoUrls } from '../packages/package-photos';
 
 const KYC_MAP: Record<string, KycStatus> = { clear: KycStatus.CLEAR, consider: KycStatus.CONSIDER, failed: KycStatus.FAILED };
 
@@ -155,8 +156,8 @@ export class GuidesService {
     const g = await this.guides.findOne({ where: { id }, relations: { sites: true } });
     return {
       ...guide,
-      sites: (g?.sites ?? []).map((s) => ({ id: s.id, name: s.name, category: s.category })),
-      packages,
+      sites: (g?.sites ?? []).map((s) => ({ id: s.id, name: s.name, nameAr: s.nameAr, category: s.category })),
+      packages: await withPhotoUrls(this.storage, packages),
       reviews: reviews.map((r) => ({
         id: r.id,
         rating: r.rating,

@@ -24,8 +24,17 @@ export class RegisterDto {
   @IsIn([UserRole.TOURIST, UserRole.GUIDE])
   role: UserRole.TOURIST | UserRole.GUIDE;
 
-  @ApiProperty({ required: false }) @IsOptional() @IsString() @Length(2, 8)
-  locale?: string;
+  @ApiProperty({ required: false, enum: ['en', 'ar'] }) @IsOptional() @IsIn(['en', 'ar'])
+  locale?: 'en' | 'ar';
+}
+
+export class UpdateMeDto {
+  /** Language for notifications and SMS. */
+  @ApiProperty({ required: false, enum: ['en', 'ar'] }) @IsOptional() @IsIn(['en', 'ar'])
+  locale?: 'en' | 'ar';
+
+  @ApiProperty({ required: false }) @IsOptional() @IsString() @Length(2, 120)
+  fullName?: string;
 }
 
 export class LoginDto {
@@ -47,4 +56,9 @@ export class RequestOtpDto {
 export class VerifyOtpDto extends RequestOtpDto {
   @ApiProperty({ example: '123456' }) @Matches(/^\d{6}$/)
   code: string;
+}
+
+export class RefreshDto {
+  @ApiProperty() @IsString() @Length(20, 200)
+  refreshToken: string;
 }

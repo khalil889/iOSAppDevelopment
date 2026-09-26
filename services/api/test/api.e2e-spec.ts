@@ -6,15 +6,20 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import { DomainErrorFilter } from '../src/common/errors/domain-error.filter';
 
 let app: INestApplication;
 let base: string;
 
-async function call<T = any>(method: string, path: string, body?: unknown, token?: string): Promise<{ status: number; body: T }> {
+async function call<T = any>(
+  method: string,
+  path: string,
+  body?: unknown,
+  token?: string,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; body: T }> {
   const res = await fetch(`${base}${path}`, {
     method,
-    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, body: (await res.json()) as T };
@@ -33,10 +38,9 @@ function nextWeekday(weekday: number): string {
 beforeAll(async () => {
   process.env.DB_RUN_MIGRATIONS = 'false';
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  app = moduleRef.createNestApplication();
+  app = moduleRef.createNestApplication({ rawBody: true });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
-  app.useGlobalFilters(new DomainErrorFilter());
   await app.listen(0);
   base = `${await app.getUrl()}/api`.replace('[::1]', 'localhost');
 });
@@ -156,5 +160,367 @@ describe('notifications', () => {
     const sara = await login('sara@example.com');
     const inbox = await call('GET', '/me/notifications', undefined, sara);
     expect(inbox.body.items.some((n: { type: string }) => n.type === 'REVIEW_REMINDER')).toBe(true);
+  });
+});
+
+describe('sessions', () => {
+  const signIn = (email: string, password = 'Password123!') =>
+    call<{ accessToken: string; refreshToken: string; expiresIn: number; statusCode?: number }>('POST', '/auth/login', { email, password });
+
+  it('rotates refresh tokens and revokes the family when an old one is replayed', async () => {
+    const first = (await signIn('mona@guides.test')).body;
+    expect(first.expiresIn).toBe(900);
+    const second = await call('POST', '/auth/refresh', { refreshToken: first.refreshToken });
+    expect(second.status).toBe(200);
+    expect(second.body.refreshToken).not.toBe(first.refreshToken);
+
+    expect((await call('POST', '/auth/refresh', { refreshToken: first.refreshToken })).status).toBe(401); // replay
+    expect((await call('POST', '/auth/refresh', { refreshToken: second.body.refreshToken })).status).toBe(401); // family revoked
+  });
+
+  it('logout-all ends every session of the user', async () => {
+    const a = (await signIn('yousef@guides.test')).body;
+    const b = (await signIn('yousef@guides.test')).body;
+    expect((await call('POST', '/auth/logout-all', {}, a.accessToken)).body.sessions).toBeGreaterThanOrEqual(2);
+    expect((await call('POST', '/auth/refresh', { refreshToken: b.refreshToken })).status).toBe(401);
+  });
+
+  it('locks password login after repeated failures; a phone code clears it', async () => {
+    for (let i = 0; i < 5; i++) expect((await signIn('omar@guides.test', 'wrong-password')).status).toBe(401);
+    expect((await signIn('omar@guides.test')).status).toBe(429);
+
+    const sent = await call<{ devCode?: string }>('POST', '/auth/otp/request', { phone: '+966500000103', purpose: 'LOGIN' });
+    if (sent.body.devCode) {
+      const verified = await call('POST', '/auth/otp/verify', { phone: '+966500000103', purpose: 'LOGIN', code: sent.body.devCode });
+      expect(verified.status).toBe(200);
+      expect((await signIn('omar@guides.test')).status).toBe(200);
+    }
+  });
+});
+
+describe('hardening', () => {
+  it('lets only one of two concurrent cancels through and refunds once', async () => {
+    const { DataSource } = await import('typeorm');
+    const tourist = await login('aisha@example.com');
+    const guides = await call('GET', '/guides?q=Noura');
+    const profile = await call('GET', `/guides/${guides.body.items[0].id}`);
+    const pkg = profile.body.packages[0];
+    const slots = await call('GET', `/availability/slots?packageId=${pkg.id}&date=${nextWeekday(3)}`);
+    const booking = await call('POST', '/bookings', { packageId: pkg.id, startAt: slots.body.slots[1].startAt, groupSize: 1 }, tourist);
+    await call('POST', `/bookings/${booking.body.id}/pay`, { paymentMethodToken: 'tok_ok' }, tourist);
+
+    const results = await Promise.all([1, 2].map(() => call('POST', `/bookings/${booking.body.id}/cancel`, { reason: 'race' }, tourist)));
+    expect(results.filter((r) => r.status < 300)).toHaveLength(1);
+
+    const rows = await app
+      .get(DataSource)
+      .query(`SELECT "escrowStatus", "refundedMinor" FROM payments WHERE "bookingId" = $1`, [booking.body.id]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].escrowStatus).toBe('REFUNDED');
+  });
+
+  it('never signs admins in with a phone code alone', async () => {
+    const sent = await call<{ devCode?: string }>('POST', '/auth/otp/request', { phone: '+966500000001', purpose: 'LOGIN' });
+    expect(sent.status).toBe(200);
+    expect(sent.body.devCode).toBeUndefined();
+    const guess = await call('POST', '/auth/otp/verify', { phone: '+966500000001', purpose: 'LOGIN', code: '000000' });
+    expect(guess.status).toBe(401);
+  });
+
+  it('rejects access tokens of a deactivated account', async () => {
+    const { DataSource } = await import('typeorm');
+    const db = app.get(DataSource);
+    const token = await login('khalid@guides.test');
+    await db.query(`UPDATE users SET "isActive" = false WHERE email = 'khalid@guides.test'`);
+    try {
+      expect((await call('GET', '/auth/me', undefined, token)).status).toBe(401);
+    } finally {
+      await db.query(`UPDATE users SET "isActive" = true WHERE email = 'khalid@guides.test'`);
+    }
+  });
+});
+
+describe('arabic', () => {
+  const ar = { 'accept-language': 'ar-SA,ar;q=0.9,en;q=0.5' };
+
+  it('returns Arabic content names when asked, English otherwise', async () => {
+    const en = await call('GET', '/sites?q=Hegra');
+    expect(en.body.items[0].name).toBe("Hegra (Mada'in Salih)");
+    const arabic = await call('GET', '/sites?q=Hegra', undefined, undefined, ar);
+    expect(arabic.body.items[0].name).toBe('الحِجر (مدائن صالح)');
+    expect(arabic.body.items[0].city.name).toBe('العُلا');
+
+    const guides = await call('GET', '/guides?q=Noura', undefined, undefined, ar);
+    expect(guides.body.items[0].cities.map((c: { name: string }) => c.name)).toContain('العُلا');
+  });
+
+  it('translates domain and auth errors', async () => {
+    const tourist = await login('aisha@example.com');
+    const guides = await call('GET', '/guides?q=Noura');
+    const profile = await call('GET', `/guides/${guides.body.items[0].id}`, undefined, undefined, ar);
+    expect(profile.body.packages[0].title).toMatch(/[\u0600-\u06FF]/);
+    const outside = await call(
+      'POST',
+      '/bookings/quote',
+      { packageId: profile.body.packages[0].id, startAt: `${nextWeekday(5)}T07:00:00Z`, groupSize: 2 },
+      tourist,
+      ar,
+    );
+    expect(outside.body.error).toBe('GUIDE_UNAVAILABLE');
+    expect(outside.body.message).toBe('المرشد غير متاح في هذا الوقت');
+
+    const bad = await call('POST', '/auth/login', { email: 'nobody@example.com', password: 'x' }, undefined, ar);
+    expect(bad.status).toBe(401);
+    expect(bad.body.message).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+  });
+
+  it("sends notifications in each user's saved language", async () => {
+    const guide = await login('faisal@guides.test');
+    const saved = await call('PATCH', '/auth/me', { locale: 'ar' }, guide);
+    expect(saved.body.locale).toBe('ar');
+    expect((await call('PATCH', '/auth/me', { locale: 'fr' }, guide)).status).toBe(400);
+
+    const { NotificationsService } = await import('../src/notifications/notifications.service');
+    const me = await call('GET', '/auth/me', undefined, guide);
+    await app.get(NotificationsService).notify({
+      userIds: [me.body.id],
+      type: 'NEW_BOOKING' as never,
+      message: (lang) => (lang === 'ar' ? { title: 'حجز جديد', body: 'نص' } : { title: 'New booking', body: 'text' }),
+    });
+    const inbox = await call('GET', '/me/notifications', undefined, guide);
+    expect(inbox.body.items[0].title).toBe('حجز جديد');
+    await call('PATCH', '/auth/me', { locale: 'en' }, guide);
+  });
+});
+
+describe('guide tours', () => {
+  const rebase = (url: string) => url.replace(/^https?:\/\/[^/]+\/api/, base);
+
+  it('lets a guide create, photograph, translate, edit and pause a tour', async () => {
+    const guide = await login('faisal@guides.test');
+    const cities = await call('GET', '/cities');
+    const riyadh = cities.body.find((c: { name: string }) => c.name === 'Riyadh');
+    const cairo = cities.body.find((c: { name: string }) => c.name === 'Cairo');
+    const sites = await call('GET', `/sites?cityId=${riyadh.id}&limit=50`);
+    const masmak = sites.body.items.find((s: { name: string }) => s.name === 'Masmak Fortress');
+    const giza = (await call('GET', '/sites?q=Giza')).body.items[0];
+
+    // Photo: signed upload, then attach the key.
+    const bytes = Buffer.from('\xff\xd8\xff\xe0fake-jpeg-bytes', 'latin1');
+    const grant = await call('POST', '/packages/photo-upload', { contentType: 'image/jpeg', sizeBytes: bytes.length }, guide);
+    expect(grant.status).toBe(201);
+    const put = await fetch(rebase(grant.body.uploadUrl), { method: 'PUT', headers: grant.body.headers, body: bytes });
+    expect(put.status).toBeLessThan(300);
+
+    const draft = {
+      cityId: riyadh.id,
+      title: 'Riyadh by Night',
+      titleAr: 'الرياض ليلًا',
+      description: 'Lights of the old city.',
+      durationMinutes: 150,
+      pricingType: 'PER_GROUP',
+      priceMinor: 50000,
+      maxGroupSize: 5,
+      languages: ['ar', 'en'],
+      siteIds: [masmak.id],
+      photoKeys: [grant.body.key],
+    };
+    expect((await call('POST', '/packages', { ...draft, cityId: cairo.id }, guide)).body.error).toBe('CITY_NOT_SERVED');
+    expect((await call('POST', '/packages', { ...draft, siteIds: [giza.id] }, guide)).body.error).toBe('SITE_CITY_MISMATCH');
+    const foreignKey = 'packages/00000000-0000-4000-8000-000000000000/00000000-0000-4000-8000-000000000001.jpg';
+    expect((await call('POST', '/packages', { ...draft, photoKeys: [foreignKey] }, guide)).body.error).toBe('PHOTO_NOT_UPLOADED');
+
+    const created = await call('POST', '/packages', draft, guide);
+    expect(created.status).toBe(201);
+    expect(created.body.currency).toBe('SAR'); // from the city's country
+    expect(created.body.photoUrls).toHaveLength(1);
+    const photo = await fetch(rebase(created.body.photoUrls[0]));
+    expect(photo.headers.get('content-type')).toMatch(/image\/jpeg/);
+
+    // Public profile shows it, in Arabic when asked.
+    const profileId = (await call('GET', '/guides?q=Faisal')).body.items[0].id;
+    const arProfile = await call('GET', `/guides/${profileId}`, undefined, undefined, { 'accept-language': 'ar' });
+    expect(arProfile.body.packages.map((p: { title: string }) => p.title)).toContain('الرياض ليلًا');
+
+    // The editor gets both languages; edits and pausing work.
+    const mine = await call('GET', '/packages/mine', undefined, guide, { 'accept-language': 'ar' });
+    const own = mine.body.find((p: { id: string }) => p.id === created.body.id);
+    expect(own).toMatchObject({ title: 'Riyadh by Night', titleAr: 'الرياض ليلًا' });
+    const edited = await call('PATCH', `/packages/${created.body.id}`, { priceMinor: 55000, photoKeys: [], isActive: false }, guide);
+    expect(edited.body).toMatchObject({ priceMinor: 55000, isActive: false, photoUrls: [] });
+    const after = await call('GET', `/guides/${profileId}`);
+    expect(after.body.packages.map((p: { id: string }) => p.id)).not.toContain(created.body.id);
+    expect((await call('GET', `/packages/${created.body.id}`)).status).toBe(404);
+  });
+
+  it("refuses to edit another guide's tour", async () => {
+    const other = await login('noura@guides.test');
+    const mine = await call('GET', '/packages/mine', undefined, await login('faisal@guides.test'));
+    const res = await call('PATCH', `/packages/${mine.body[0].id}`, { priceMinor: 1 }, other);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('payouts', () => {
+  it('saves a valid IBAN encrypted and only ever shows it masked', async () => {
+    const guide = await login('noura@guides.test');
+    expect((await call('PUT', '/guides/me/payout-account', { holderName: 'Noura', iban: 'SA03 8000 0000 6080 1016 7518' }, guide)).body.error).toBe(
+      'INVALID_IBAN',
+    );
+    const saved = await call('PUT', '/guides/me/payout-account', { holderName: 'Noura Al-Qahtani', iban: 'sa44 2000 0001 2345 6789 1234' }, guide);
+    expect(saved.status).toBe(200);
+    expect(saved.body).toMatchObject({ holderName: 'Noura Al-Qahtani', ibanMasked: 'SA44 •••• 1234' });
+    expect(JSON.stringify(saved.body)).not.toMatch(/2345 ?6789|ibanSealed/);
+
+    const { DataSource } = await import('typeorm');
+    const [row] = await app.get(DataSource).query(`SELECT "ibanSealed" FROM payout_accounts WHERE "holderName" = 'Noura Al-Qahtani'`);
+    expect(row.ibanSealed).toMatch(/^v1:/);
+    expect(row.ibanSealed).not.toContain('123456789');
+    // Clean up so the run below skips her.
+    await app.get(DataSource).query(`DELETE FROM payout_accounts WHERE "holderName" = 'Noura Al-Qahtani'`);
+  });
+
+  it('runs payouts: owed → run → CSV → paid, never paying a payment twice', async () => {
+    const admin = (await call('POST', '/auth/login', { email: 'admin@tourguide.test', password: 'Admin123!' })).body.accessToken;
+    const guide = await login('faisal@guides.test');
+
+    const before = await call('GET', '/guides/me/earnings', undefined, guide);
+    const owedSar = before.body.owed.find((o: { currency: string }) => o.currency === 'SAR');
+    expect(owedSar.amountMinor).toBeGreaterThan(0);
+    expect(before.body.account.ibanMasked).toBe('SA03 •••• 7519');
+
+    const owed = await call('GET', '/admin/payouts/owed', undefined, admin);
+    const noura = owed.body.find((r: { guideName: string }) => r.guideName === 'Noura Al-Qahtani');
+    expect(noura.ibanMasked).toBeNull(); // no account → will be skipped
+
+    const created = await call('POST', '/admin/payouts/runs', { currency: 'SAR' }, admin);
+    expect(created.status).toBe(201);
+    expect(created.body.skippedGuideIds.length).toBeGreaterThanOrEqual(1);
+    expect(created.body.run.payoutCount).toBe(1);
+    expect(created.body.run.totalMinor).toBe(owedSar.amountMinor);
+
+    // Nothing left to pay for Faisal: a second run finds nobody payable.
+    expect((await call('POST', '/admin/payouts/runs', { currency: 'SAR' }, admin)).body.error).toBe('NOTHING_TO_PAY');
+
+    const run = await call('GET', `/admin/payouts/runs/${created.body.run.id}`, undefined, admin);
+    const payout = run.body.payouts[0];
+    expect(payout).toMatchObject({ status: 'PENDING', ibanMasked: 'SA03 •••• 7519', guide: { name: 'Faisal Al-Harbi' } });
+    expect(payout.ibanSealed).toBeUndefined();
+
+    const csvRes = await fetch(`${base}/admin/payouts/runs/${created.body.run.id}/export`, { headers: { authorization: `Bearer ${admin}` } });
+    expect(csvRes.headers.get('content-type')).toMatch(/text\/csv/);
+    const csv = await csvRes.text();
+    expect(csv).toContain('SA0380000000608010167519');
+    expect(csv.split('\r\n')[1]).toMatch(/,SAR,TG-/);
+    // Guides can't read it.
+    expect((await fetch(`${base}/admin/payouts/runs/${created.body.run.id}/export`, { headers: { authorization: `Bearer ${guide}` } })).status).toBe(403);
+
+    const paid = await call('POST', `/admin/payouts/${payout.id}/paid`, { reference: 'RJHI-7781' }, admin);
+    expect(paid.body).toMatchObject({ status: 'PAID', note: 'RJHI-7781' });
+    expect((await call('POST', `/admin/payouts/${payout.id}/paid`, { reference: 'again' }, admin)).status).toBe(409);
+
+    const after = await call('GET', '/guides/me/earnings', undefined, guide);
+    expect(after.body.owed.find((o: { currency: string }) => o.currency === 'SAR')).toBeUndefined();
+    expect(after.body.payouts[0]).toMatchObject({ status: 'PAID', amountMinor: owedSar.amountMinor });
+    const inbox = await call('GET', '/me/notifications', undefined, guide);
+    expect(inbox.body.items[0].type).toBe('PAYOUT_SENT');
+  });
+
+  it('returns the payments of a failed payout to the pool', async () => {
+    const admin = (await call('POST', '/auth/login', { email: 'admin@tourguide.test', password: 'Admin123!' })).body.accessToken;
+    const run = await call('POST', '/admin/payouts/runs', { currency: 'EGP' }, admin);
+    const detail = await call('GET', `/admin/payouts/runs/${run.body.run.id}`, undefined, admin);
+    const failed = await call('POST', `/admin/payouts/${detail.body.payouts[0].id}/failed`, { reason: 'Beneficiary account closed' }, admin);
+    expect(failed.body.status).toBe('FAILED');
+    const owed = await call('GET', '/admin/payouts/owed', undefined, admin);
+    expect(owed.body.some((r: { currency: string; guideName: string }) => r.currency === 'EGP' && r.guideName === 'Mona Hassan')).toBe(true);
+  });
+});
+
+describe('identity verification', () => {
+  it('blocks approval until identity is verified, then accepts a signed Sumsub-style webhook', async () => {
+    const admin = (await call('POST', '/auth/login', { email: 'admin@tourguide.test', password: 'Admin123!' })).body.accessToken;
+    const queue = await call('GET', '/admin/guides?status=PENDING', undefined, admin);
+    const layla = queue.body.items.find((g: { user?: { fullName: string }; name?: string }) => (g.user?.fullName ?? g.name) === 'Layla Mansour');
+    const blocked = await call('POST', `/admin/guides/${layla.id}/approve`, {}, admin);
+    expect(blocked.body.error).toBe('IDENTITY_NOT_VERIFIED');
+
+    // The stub provider verifies immediately when the guide starts.
+    const guide = await login('layla@guides.test');
+    const started = await call('POST', '/guides/me/identity', {}, guide);
+    expect(started.body).toEqual({ status: 'APPROVED', url: null });
+    const inbox = await call('GET', '/me/notifications', undefined, guide);
+    expect(inbox.body.items[0].type).toBe('IDENTITY_VERIFIED');
+
+    // Webhooks from a provider we can't verify are refused.
+    const hook = await fetch(`${base}/identity/webhooks/sumsub`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-payload-digest': 'deadbeef' },
+      body: JSON.stringify({ type: 'applicantReviewed', externalUserId: layla.id, reviewResult: { reviewAnswer: 'RED' } }),
+    });
+    expect(hook.status).toBe(401);
+  });
+});
+
+describe('analytics', () => {
+  it('summarises bookings, money and top performers for admins only', async () => {
+    const admin = (await call('POST', '/auth/login', { email: 'admin@tourguide.test', password: 'Admin123!' })).body.accessToken;
+    const res = await call('GET', '/admin/analytics?days=30&currency=SAR', undefined, admin);
+    expect(res.status).toBe(200);
+    expect(res.body.range).toMatchObject({ days: 30, currency: 'SAR' });
+    expect(res.body.daily).toHaveLength(30); // whole Riyadh days, today included
+    expect(res.body.bookings.created).toBeGreaterThan(0);
+    expect(res.body.money.gmvMinor).toBeGreaterThan(0);
+    expect(res.body.topCities[0]).toHaveProperty('nameAr');
+    expect(res.body.currencies).toEqual(expect.arrayContaining(['SAR', 'EGP', 'JOD']));
+    expect(res.body.guideFunnel.APPROVED).toBeGreaterThan(0);
+    expect((await call('GET', '/admin/analytics?days=13', undefined, admin)).status).toBe(400);
+    expect((await call('GET', '/admin/analytics', undefined, await login('faisal@guides.test'))).status).toBe(403);
+  });
+});
+
+describe('review fixes', () => {
+  const adminToken = async () =>
+    (await call('POST', '/auth/login', { email: 'admin@tourguide.test', password: 'Admin123!' })).body.accessToken;
+
+  it("rechecks the city and currency when a tour's city changes, and rejects nulls", async () => {
+    const guide = await login('faisal@guides.test');
+    const cairo = (await call('GET', '/cities')).body.find((c: { name: string }) => c.name === 'Cairo');
+    const [tour] = (await call('GET', '/packages/mine', undefined, guide)).body;
+    expect((await call('PATCH', `/packages/${tour.id}`, { cityId: cairo.id }, guide)).body.error).toBe('CITY_NOT_SERVED');
+    expect((await call('PATCH', `/packages/${tour.id}`, { title: null }, guide)).status).toBe(400);
+    const after = (await call('GET', '/packages/mine', undefined, guide)).body.find((p: { id: string }) => p.id === tour.id);
+    expect(after).toMatchObject({ cityId: tour.cityId, currency: 'SAR', title: tour.title });
+  });
+
+  it('alerts the guide and holds payouts for 24h after bank details change', async () => {
+    const guide = await login('mona@guides.test');
+    const changed = await call('PUT', '/guides/me/payout-account', { holderName: 'Mona Hassan', iban: 'GB82 WEST 1234 5698 7654 32' }, guide);
+    expect(changed.body.ibanMasked).toBe('GB82 •••• 5432');
+    const inbox = await call('GET', '/me/notifications', undefined, guide);
+    expect(inbox.body.items[0].type).toBe('PAYOUT_ACCOUNT_CHANGED');
+
+    const run = await call('POST', '/admin/payouts/runs', { currency: 'EGP' }, await adminToken());
+    expect(run.body.error).toBe('NOTHING_TO_PAY'); // Mona's only account is in its cooling-off period
+  });
+
+  it('can reverse a paid payout when the bank returns it, and counts exports', async () => {
+    const admin = await adminToken();
+    const runs = (await call('GET', '/admin/payouts/runs', undefined, admin)).body;
+    const sarRun = runs.find((r: { currency: string }) => r.currency === 'SAR');
+    const detail = await call('GET', `/admin/payouts/runs/${sarRun.id}`, undefined, admin);
+    const paid = detail.body.payouts.find((p: { status: string }) => p.status === 'PAID');
+    expect(detail.body.exportCount).toBeGreaterThanOrEqual(1);
+
+    const reversed = await call('POST', `/admin/payouts/${paid.id}/failed`, { reason: 'Returned by bank: account closed' }, admin);
+    expect(reversed.body).toMatchObject({ status: 'FAILED' });
+    expect(reversed.body.note).toMatch(/was: RJHI-7781/);
+    const owed = await call('GET', '/admin/payouts/owed', undefined, admin);
+    expect(owed.body.some((r: { guideName: string; currency: string }) => r.guideName === 'Faisal Al-Harbi' && r.currency === 'SAR')).toBe(true);
+    expect((await call('POST', '/admin/payouts/00000000-0000-4000-8000-000000000000/paid', { reference: 'x-123' }, admin)).status).toBe(404);
+
+    const guide = await login('faisal@guides.test');
+    const earnings = await call('GET', '/guides/me/earnings', undefined, guide);
+    expect(earnings.body.payouts[0].settledById).toBeUndefined();
   });
 });

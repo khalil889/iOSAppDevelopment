@@ -72,8 +72,10 @@ export class AdminGuidesService {
     await this.notifications.notify({
       userIds: [guide.userId],
       type: NotificationType.GUIDE_APPROVED,
-      title: "You're verified!",
-      body: 'Your tourism license was approved. You now appear in search and can receive bookings.',
+      message: (lang) =>
+        lang === 'ar'
+          ? { title: 'تم توثيقك!', body: 'تمت الموافقة على رخصتك السياحية. أصبحت تظهر في نتائج البحث ويمكنك استقبال الحجوزات.' }
+          : { title: "You're verified!", body: 'Your tourism license was approved. You now appear in search and can receive bookings.' },
       data: { screen: 'dashboard' },
     });
     return result;
@@ -90,8 +92,10 @@ export class AdminGuidesService {
     await this.notifications.notify({
       userIds: [guide.userId],
       type: NotificationType.GUIDE_REJECTED,
-      title: 'License verification needs attention',
-      body: `${reason.trim()} You can fix this and resubmit from your dashboard.`,
+      message: (lang) =>
+        lang === 'ar'
+          ? { title: 'التحقق من الرخصة يحتاج إلى مراجعتك', body: `${reason.trim()} يمكنك تصحيح ذلك وإعادة الإرسال من لوحة التحكم.` }
+          : { title: 'License verification needs attention', body: `${reason.trim()} You can fix this and resubmit from your dashboard.` },
       data: { screen: 'dashboard' },
     });
     return result;

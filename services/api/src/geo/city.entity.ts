@@ -9,6 +9,10 @@ export class City extends BaseEntity {
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
+  /** Arabic name; sent instead of `name` to clients that ask for Arabic. */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  nameAr: string | null;
+
   @Column({ type: 'uuid' })
   countryId: string;
 

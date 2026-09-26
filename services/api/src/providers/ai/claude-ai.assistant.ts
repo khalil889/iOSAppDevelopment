@@ -81,7 +81,7 @@ export class ClaudeAiAssistant implements AiAssistant {
     try {
       const response = await this.client.beta.messages.create({
         model: this.model,
-        max_tokens: 4096,
+        max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: request,
         output_config: {

@@ -1,4 +1,6 @@
-import type { KycStatus, VerificationStatus } from '@/lib/api';
+'use client';
+
+import { LabelNamespace, useI18n } from '@/lib/i18n';
 
 const TONE: Record<string, string> = {
   PENDING: 'warn',
@@ -10,13 +12,20 @@ const TONE: Record<string, string> = {
   CONSIDER: 'warn',
   FAILED: 'bad',
   NOT_STARTED: 'neutral',
+  PAID: 'ok',
+  RETRY: 'warn',
 };
 
-export function StatusBadge({ status, prefix }: { status: VerificationStatus | KycStatus; prefix?: string }) {
-  return (
-    <span className={`badge ${TONE[status] ?? 'neutral'}`}>
-      {prefix ? `${prefix} ` : ''}
-      {status.replace('_', ' ').toLowerCase()}
-    </span>
-  );
+/** Translated status pill. `kind` picks the dictionary namespace (default: guide verification). */
+export function StatusBadge({
+  status,
+  kind = 'verification',
+  tone,
+}: {
+  status: string;
+  kind?: LabelNamespace;
+  tone?: 'ok' | 'warn' | 'bad' | 'neutral';
+}) {
+  const { label } = useI18n();
+  return <span className={`badge ${tone ?? TONE[status] ?? 'neutral'}`}>{label(kind, status)}</span>;
 }

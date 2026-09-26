@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/api_client.dart';
+import '../l10n/l10n.dart';
 
 /// Network image with a neutral placeholder when loading fails or offline.
 class NetImage extends StatelessWidget {
@@ -70,7 +70,7 @@ class RatingStars extends StatelessWidget {
         Icon(Icons.star_rounded, size: size + 2, color: color),
         const SizedBox(width: 2),
         Text(
-          count == 0 ? 'New' : rating.toStringAsFixed(1),
+          count == 0 ? context.l10n.ratingNew : rating.toStringAsFixed(1),
           style: TextStyle(fontWeight: FontWeight.w600, fontSize: size - 2),
         ),
         if (count != null && count! > 0)
@@ -96,7 +96,7 @@ class VerifiedBadge extends StatelessWidget {
           Icon(Icons.verified, size: 14, color: scheme.primary),
           if (!compact) ...[
             const SizedBox(width: 4),
-            Text('Licensed', style: TextStyle(fontSize: 12, color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600)),
+            Text(context.l10n.widgetLicensed, style: TextStyle(fontSize: 12, color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600)),
           ],
         ],
       ),
@@ -136,10 +136,10 @@ class ErrorView extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off, size: 40),
             const SizedBox(height: 8),
-            Text(error is ApiException ? error.toString() : 'Something went wrong', textAlign: TextAlign.center),
+            Text(errorText(context, error), textAlign: TextAlign.center),
             if (onRetry != null) ...[
               const SizedBox(height: 12),
-              OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+              OutlinedButton(onPressed: onRetry, child: Text(context.l10n.retry)),
             ],
           ],
         ),
@@ -173,10 +173,14 @@ class EmptyView extends StatelessWidget {
   }
 }
 
+/// Wraps [s] in a left-to-right isolate so phone numbers, emails and codes
+/// keep their order inside Arabic (RTL) text.
+String bidiLtr(String s) => s.isEmpty ? s : '\u2066$s\u2069';
+
 void showError(BuildContext context, Object e) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Something went wrong')));
+    ..showSnackBar(SnackBar(content: Text(errorText(context, e))));
 }
 
 void showMessage(BuildContext context, String msg) {

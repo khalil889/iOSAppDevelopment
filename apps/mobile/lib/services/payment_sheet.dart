@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:moyasar/moyasar.dart' as moyasar;
 
 import '../core/format.dart';
+import '../l10n/l10n.dart';
 import 'repository.dart';
 
 /// What the app is asking the tourist to pay for.
@@ -104,7 +105,7 @@ class _MoyasarFormState extends State<_MoyasarForm> {
         case moyasar.PaymentStatus.failed:
           final source = result.source;
           final message = source is moyasar.CardPaymentResponseSource ? source.message : null;
-          setState(() => _error = message ?? 'Payment failed. Try another card.');
+          setState(() => _error = message ?? context.l10n.paymentFailedTryAnother);
           return;
       }
     }
@@ -114,7 +115,7 @@ class _MoyasarFormState extends State<_MoyasarForm> {
       moyasar.PaymentCanceledError() => null,
       moyasar.NetworkError(:final message) => message,
       moyasar.TimeoutError(:final message) => message,
-      _ => 'Payment could not be completed.',
+      _ => context.l10n.paymentNotCompleted,
     };
     if (message == null) {
       Navigator.pop(context);
@@ -126,17 +127,18 @@ class _MoyasarFormState extends State<_MoyasarForm> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = context.l10n;
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+      padding: EdgeInsetsDirectional.fromSTEB(16, 0, 16, MediaQuery.of(context).viewInsets.bottom + 16),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Pay ${widget.amountLabel}', style: t.titleLarge, textAlign: TextAlign.center),
+            Text(l10n.paymentPayAmount(widget.amountLabel), style: t.titleLarge, textAlign: TextAlign.center),
             const SizedBox(height: 4),
-            const Text(
-              'Held securely in escrow and released to your guide only after the tour.',
+            Text(
+              l10n.paymentEscrowNote,
               textAlign: TextAlign.center,
             ),
             if (_error != null) ...[
@@ -147,7 +149,7 @@ class _MoyasarFormState extends State<_MoyasarForm> {
             moyasar.CreditCard(
               config: widget.config,
               onPaymentResult: _onResult,
-              locale: Localizations.localeOf(context).languageCode == 'ar'
+              locale: context.isArabic
                   ? const moyasar.Localization.ar()
                   : const moyasar.Localization.en(),
             ),
@@ -166,37 +168,45 @@ class StubPaymentSheet implements PaymentSheet {
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text('Pay ${request.amountLabel}', style: Theme.of(ctx).textTheme.titleLarge),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                'Test mode — no real charge. Funds are held in escrow until your tour is completed.',
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(Icons.credit_card),
-              title: const Text('Test card — succeeds'),
-              subtitle: const Text('•••• 4242'),
-              onTap: () => Navigator.pop(ctx, 'tok_ok'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.credit_card_off),
-              title: const Text('Test card — declined'),
-              subtitle: const Text('•••• 0002'),
-              onTap: () => Navigator.pop(ctx, 'tok_fail'),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
+        child: _StubSheetBody(amountLabel: request.amountLabel),
       ),
+    );
+  }
+}
+
+class _StubSheetBody extends StatelessWidget {
+  const _StubSheetBody({required this.amountLabel});
+  final String amountLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 0, 24, 8),
+          child: Text(l10n.paymentPayAmount(amountLabel), style: Theme.of(context).textTheme.titleLarge),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(l10n.paymentTestModeNote, textAlign: TextAlign.center),
+        ),
+        const SizedBox(height: 8),
+        ListTile(
+          leading: const Icon(Icons.credit_card),
+          title: Text(l10n.paymentTestCardSucceeds),
+          subtitle: const Text('•••• 4242', textDirection: TextDirection.ltr),
+          onTap: () => Navigator.pop(context, 'tok_ok'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.credit_card_off),
+          title: Text(l10n.paymentTestCardDeclined),
+          subtitle: const Text('•••• 0002', textDirection: TextDirection.ltr),
+          onTap: () => Navigator.pop(context, 'tok_fail'),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

@@ -22,10 +22,13 @@ class AppUser {
     this.email,
     this.phone,
     this.phoneVerified = false,
+    this.locale = 'en',
   });
 
   final String id;
   final String fullName;
+  /// Language for notifications and SMS ('en' or 'ar').
+  final String locale;
   final UserRole role;
   final String? email;
   final String? phone;
@@ -40,6 +43,23 @@ class AppUser {
         email: j['email'],
         phone: j['phone'],
         phoneVerified: j['phoneVerifiedAt'] != null,
+        locale: j['locale'] ?? 'en',
+      );
+}
+
+class AuthResult {
+  AuthResult({required this.accessToken, required this.refreshToken, required this.user, this.devCode});
+  final String accessToken, refreshToken;
+  final AppUser user;
+
+  /// OTP code echoed by the API in development only.
+  final String? devCode;
+
+  factory AuthResult.fromJson(Map<String, dynamic> j) => AuthResult(
+        accessToken: j['accessToken'] as String,
+        refreshToken: j['refreshToken'] as String,
+        user: AppUser.fromJson(j['user']),
+        devCode: j['devCode'] as String?,
       );
 }
 
@@ -226,15 +246,6 @@ BookingStatus _bookingStatus(String? s) => switch (s) {
       _ => BookingStatus.pendingPayment,
     };
 
-extension BookingStatusLabel on BookingStatus {
-  String get label => switch (this) {
-        BookingStatus.pendingPayment => 'Awaiting payment',
-        BookingStatus.confirmed => 'Confirmed',
-        BookingStatus.inProgress => 'Live now',
-        BookingStatus.completed => 'Completed',
-        BookingStatus.cancelled => 'Cancelled',
-      };
-}
 
 class Person {
   Person({required this.id, required this.name, this.phone, this.avatarUrl});
@@ -384,10 +395,18 @@ class GuideDashboard {
     required this.earnings,
     required this.upcoming,
     this.rejectionReason,
+    this.identityStatus,
+    this.identityComment,
   });
 
   final String name, verificationStatus;
   final String? rejectionReason;
+
+  /// Null when the API didn't say (the card is then hidden).
+  final IdentityStatus? identityStatus;
+
+  /// The identity provider's note for the guide, e.g. why a retry is needed.
+  final String? identityComment;
   final double ratingAvg;
   final int ratingCount;
   final Map<String, int> stats;
@@ -397,9 +416,15 @@ class GuideDashboard {
   bool get isApproved => verificationStatus == 'APPROVED';
   bool get canSubmitLicense => verificationStatus == 'DRAFT' || verificationStatus == 'REJECTED';
 
-  factory GuideDashboard.fromJson(Map<String, dynamic> j) {
+  /// [profile] is `GET /guides/me`, used for the identity fields when the
+  /// dashboard payload doesn't include them.
+  factory GuideDashboard.fromJson(Map<String, dynamic> j, {Map<String, dynamic>? profile}) {
     final g = j['guide'] as Map<String, dynamic>;
+    final idSource = g.containsKey('identityStatus') ? g : profile;
+    final review = idSource?['identityReview'];
     return GuideDashboard(
+      identityStatus: idSource?['identityStatus'] == null ? null : identityStatusFromApi(idSource!['identityStatus']),
+      identityComment: review is Map ? review['comment'] as String? : null,
       name: g['name'] ?? '',
       verificationStatus: g['verificationStatus'] ?? 'DRAFT',
       rejectionReason: g['rejectionReason'],
@@ -410,6 +435,106 @@ class GuideDashboard {
       upcoming: (j['upcoming'] as List? ?? []).map((b) => DashboardBooking.fromJson(b)).toList(),
     );
   }
+}
+
+// ---- Identity verification & payouts ----------------------------------------
+
+enum IdentityStatus { notStarted, pending, approved, retry, rejected }
+
+IdentityStatus identityStatusFromApi(dynamic s) => switch (s) {
+      'PENDING' => IdentityStatus.pending,
+      'APPROVED' => IdentityStatus.approved,
+      'RETRY' => IdentityStatus.retry,
+      'REJECTED' => IdentityStatus.rejected,
+      _ => IdentityStatus.notStarted,
+    };
+
+/// Result of `POST /guides/me/identity`: open [url] when present.
+class IdentityCheck {
+  IdentityCheck({required this.status, this.url});
+  final IdentityStatus status;
+  final String? url;
+
+  factory IdentityCheck.fromJson(Map<String, dynamic> j) =>
+      IdentityCheck(status: identityStatusFromApi(j['status']), url: j['url'] as String?);
+}
+
+/// The guide's bank account; the API only ever returns the masked IBAN.
+class PayoutAccount {
+  PayoutAccount({required this.holderName, required this.ibanMasked, this.bankName, this.updatedAt});
+  final String holderName, ibanMasked;
+  final String? bankName;
+  final DateTime? updatedAt;
+
+  factory PayoutAccount.fromJson(Map<String, dynamic> j) => PayoutAccount(
+        holderName: j['holderName'] ?? '',
+        ibanMasked: j['ibanMasked'] ?? '',
+        bankName: j['bankName'],
+        updatedAt: _date(j['updatedAt']),
+      );
+}
+
+/// Released money not yet included in a payout, per currency.
+class OwedBalance {
+  OwedBalance({required this.currency, required this.amountMinor, required this.paymentCount});
+  final String currency;
+  final int amountMinor, paymentCount;
+
+  factory OwedBalance.fromJson(Map<String, dynamic> j) =>
+      OwedBalance(currency: j['currency'] ?? 'SAR', amountMinor: _int(j['amountMinor']), paymentCount: _int(j['paymentCount']));
+}
+
+enum PayoutStatus { pending, paid, failed }
+
+class Payout {
+  Payout({
+    required this.id,
+    required this.amountMinor,
+    required this.currency,
+    required this.paymentCount,
+    required this.status,
+    required this.ibanMasked,
+    required this.createdAt,
+    this.note,
+    this.paidAt,
+  });
+
+  final String id, currency, ibanMasked;
+  final int amountMinor, paymentCount;
+  final PayoutStatus status;
+  final String? note;
+  final DateTime createdAt;
+  final DateTime? paidAt;
+
+  factory Payout.fromJson(Map<String, dynamic> j) => Payout(
+        id: j['id'],
+        amountMinor: _int(j['amountMinor']),
+        currency: j['currency'] ?? 'SAR',
+        paymentCount: _int(j['paymentCount']),
+        status: switch (j['status']) {
+          'PAID' => PayoutStatus.paid,
+          'FAILED' => PayoutStatus.failed,
+          _ => PayoutStatus.pending,
+        },
+        ibanMasked: j['ibanMasked'] ?? '',
+        note: j['note'],
+        paidAt: _date(j['paidAt']),
+        createdAt: _date(j['createdAt']) ?? DateTime.now(),
+      );
+}
+
+/// `GET /guides/me/earnings`.
+class GuideEarnings {
+  GuideEarnings({this.account, required this.owed, required this.payouts});
+  final PayoutAccount? account;
+  final List<OwedBalance> owed;
+  final List<Payout> payouts;
+
+  factory GuideEarnings.fromJson(Map<String, dynamic> j) => GuideEarnings(
+        account: j['account'] is Map<String, dynamic> ? PayoutAccount.fromJson(j['account']) : null,
+        owed: (j['owed'] as List? ?? []).map((e) => OwedBalance.fromJson(e)).toList(),
+        payouts: (j['payouts'] as List? ?? []).map((e) => Payout.fromJson(e)).toList(),
+      );
 }
 
 class PaymentClientConfig {
@@ -526,4 +651,152 @@ class Inbox {
         items: (j['items'] as List? ?? []).map((n) => AppNotification.fromJson(n)).toList(),
         unread: _int(j['unread']),
       );
+}
+
+String? _nonEmpty(dynamic v) => v is String && v.trim().isNotEmpty ? v : null;
+
+/// Picks the Arabic text when the UI is Arabic and one is set.
+String pickLocalized(String en, String? ar, bool arabic) => arabic && ar != null && ar.trim().isNotEmpty ? ar : en;
+
+/// A city a guide can offer tours in, with the currency its tours are priced in.
+class TourCity {
+  TourCity({required this.id, required this.name, this.nameAr, this.currency});
+  final String id, name;
+  final String? nameAr;
+
+  /// ISO 4217 code from the city's country; null when the API didn't include it.
+  final String? currency;
+
+  String displayName(bool arabic) => pickLocalized(name, nameAr, arabic);
+
+  factory TourCity.fromJson(Map<String, dynamic> j) => TourCity(
+        id: j['id'],
+        name: j['name'] ?? '',
+        nameAr: _nonEmpty(j['nameAr']),
+        currency: j['country'] is Map ? j['country']['currency'] as String? : null,
+      );
+}
+
+/// A site attached to a guide's tour (both languages, from /packages/mine).
+class TourSite {
+  TourSite({required this.id, required this.name, this.nameAr, this.cityId});
+  final String id, name;
+  final String? nameAr, cityId;
+
+  String displayName(bool arabic) => pickLocalized(name, nameAr, arabic);
+
+  factory TourSite.fromJson(Map<String, dynamic> j) => TourSite(
+        id: j['id'],
+        name: j['name'] ?? '',
+        nameAr: _nonEmpty(j['nameAr']),
+        cityId: j['cityId'],
+      );
+}
+
+/// One of the signed-in guide's own tour packages, with every editable field
+/// in both languages (`GET /packages/mine` is not translated).
+class GuideTour {
+  GuideTour({
+    required this.id,
+    required this.cityId,
+    required this.title,
+    required this.durationMinutes,
+    required this.pricingType,
+    required this.priceMinor,
+    required this.currency,
+    required this.maxGroupSize,
+    this.city,
+    this.titleAr,
+    this.description = '',
+    this.descriptionAr,
+    this.languages = const [],
+    this.isActive = true,
+    this.sites = const [],
+    this.photoKeys = const [],
+    this.photoUrls = const [],
+  });
+
+  final String id, cityId, title, description, pricingType, currency;
+  final String? titleAr, descriptionAr;
+  final TourCity? city;
+  final int durationMinutes, priceMinor, maxGroupSize;
+  final List<String> languages, photoKeys, photoUrls;
+  final bool isActive;
+  final List<TourSite> sites;
+
+  bool get perPerson => pricingType == 'PER_PERSON';
+  List<String> get siteIds => [for (final s in sites) s.id];
+  String? get coverUrl => photoUrls.isEmpty ? null : photoUrls.first;
+
+  String displayTitle(bool arabic) => pickLocalized(title, titleAr, arabic);
+
+  factory GuideTour.fromJson(Map<String, dynamic> j) {
+    final city = j['city'] is Map ? TourCity.fromJson(Map<String, dynamic>.from(j['city'])) : null;
+    return GuideTour(
+      id: j['id'],
+      cityId: j['cityId'] ?? city?.id ?? '',
+      city: city,
+      title: j['title'] ?? '',
+      titleAr: _nonEmpty(j['titleAr']),
+      description: j['description'] ?? '',
+      descriptionAr: _nonEmpty(j['descriptionAr']),
+      durationMinutes: _int(j['durationMinutes']),
+      pricingType: j['pricingType'] ?? 'PER_GROUP',
+      priceMinor: _int(j['priceMinor']),
+      currency: j['currency'] ?? city?.currency ?? 'USD',
+      maxGroupSize: _int(j['maxGroupSize']),
+      languages: _strings(j['languages']),
+      isActive: j['isActive'] != false,
+      sites: (j['sites'] as List? ?? []).map((s) => TourSite.fromJson(Map<String, dynamic>.from(s))).toList(),
+      photoKeys: _strings(j['photoKeys']),
+      photoUrls: _strings(j['photoUrls']),
+    );
+  }
+}
+
+/// Fields sent when creating or editing a tour. The API derives the currency
+/// from the city, so it is not sent.
+class TourInput {
+  TourInput({
+    required this.cityId,
+    required this.title,
+    required this.durationMinutes,
+    required this.pricingType,
+    required this.priceMinor,
+    required this.maxGroupSize,
+    this.titleAr = '',
+    this.description = '',
+    this.descriptionAr = '',
+    this.languages = const [],
+    this.siteIds = const [],
+    this.photoKeys = const [],
+    this.isActive,
+  });
+
+  final String cityId, title, titleAr, description, descriptionAr, pricingType;
+  final int durationMinutes, priceMinor, maxGroupSize;
+  final List<String> languages, siteIds, photoKeys;
+  final bool? isActive;
+
+  /// On create, empty Arabic fields are left out; on update they are sent as
+  /// null so a cleared field is cleared on the server too.
+  Map<String, dynamic> toJson({bool update = false}) {
+    String? opt(String s) => s.trim().isEmpty ? null : s.trim();
+    final ar = opt(titleAr), descAr = opt(descriptionAr);
+    return {
+      'cityId': cityId,
+      'title': title.trim(),
+      if (ar != null || update) 'titleAr': ar,
+      'description': description.trim(),
+      if (descAr != null || update) 'descriptionAr': descAr,
+      'durationMinutes': durationMinutes,
+      'pricingType': pricingType,
+      'priceMinor': priceMinor,
+      'maxGroupSize': maxGroupSize,
+      'languages': languages,
+      'siteIds': siteIds,
+      'photoKeys': photoKeys,
+      if (isActive != null) 'isActive': isActive,
+    };
+  }
 }

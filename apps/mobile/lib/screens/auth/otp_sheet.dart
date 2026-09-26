@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
 import '../../services/repository.dart';
 import '../../widgets/common.dart';
 
@@ -62,10 +63,10 @@ class _OtpSheetState extends State<_OtpSheet> {
     try {
       final res = await context.read<Repository>().verifyOtp(widget.phone, _code.text.trim(), login: widget.login);
       if (!mounted) return;
-      await context.read<Session>().signIn(res.token, res.user);
+      await context.read<Session>().signIn(res);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = errorText(context, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -73,17 +74,18 @@ class _OtpSheetState extends State<_OtpSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Padding(
-      padding: EdgeInsets.fromLTRB(24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsetsDirectional.fromSTEB(24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Enter the code', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.authEnterCodeTitle, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text('We sent a 6-digit code to ${widget.phone}.'),
+          Text(l10n.authCodeSentTo(bidiLtr(widget.phone))),
           if (widget.devCode != null)
-            Text('Dev mode: code pre-filled', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+            Text(l10n.authDevCodePrefilled, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
           const SizedBox(height: 16),
           TextField(
             controller: _code,
@@ -91,12 +93,13 @@ class _OtpSheetState extends State<_OtpSheet> {
             maxLength: 6,
             autofocus: true,
             textAlign: TextAlign.center,
+            textDirection: TextDirection.ltr,
             style: const TextStyle(fontSize: 24, letterSpacing: 8),
             decoration: InputDecoration(counterText: '', errorText: _error),
             onSubmitted: (_) => _verify(),
           ),
           const SizedBox(height: 16),
-          FilledButton(onPressed: _busy ? null : _verify, child: Text(_busy ? 'Verifying…' : 'Verify')),
+          FilledButton(onPressed: _busy ? null : _verify, child: Text(_busy ? l10n.authVerifying : l10n.authVerify)),
         ],
       ),
     );

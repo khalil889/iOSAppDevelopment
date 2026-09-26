@@ -1,23 +1,24 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/push_service.dart';
 import '../services/repository.dart';
 import 'api_client.dart';
+import 'token_store.dart';
 
-/// Holds the signed-in user and token; persists the token across launches.
+/// Holds the signed-in user and tokens; persists them in secure storage.
 class Session extends ChangeNotifier {
-  Session(this.api, this.repo, {PushService? push}) : push = push ?? DisabledPushService() {
-    api.onUnauthorized = signOut;
+  Session(this.api, this.repo, {PushService? push, TokenStore? store})
+      : push = push ?? DisabledPushService(),
+        store = store ?? SecureTokenStore() {
+    api.onUnauthorized = _expired;
+    api.onTokensRefreshed = this.store.write;
   }
-
-  final PushService push;
-
-  static const _tokenKey = 'auth_token';
 
   final ApiClient api;
   final Repository repo;
+  final PushService push;
+  final TokenStore store;
 
   AppUser? user;
   bool restoring = true;
@@ -27,29 +28,30 @@ class Session extends ChangeNotifier {
 
   Future<void> restore() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(_tokenKey);
-      if (token != null) {
-        api.token = token;
-        user = await repo.me();
+      final saved = await store.read();
+      if (saved != null) {
+        api.token = saved.accessToken;
+        api.refreshToken = saved.refreshToken;
+        user = await repo.me(); // refreshes transparently if the access token expired
         push.onSignedIn(repo);
       }
     } catch (_) {
-      api.token = null;
-      user = null;
+      await _clear();
     } finally {
       restoring = false;
       notifyListeners();
     }
   }
 
-  Future<void> signIn(String token, AppUser u) async {
-    api.token = token;
-    user = u;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+  Future<void> signIn(AuthResult auth) async {
+    api.token = auth.accessToken;
+    api.refreshToken = auth.refreshToken;
+    user = auth.user;
+    await store.write(auth.accessToken, auth.refreshToken);
     notifyListeners();
     push.onSignedIn(repo);
+    // Keep notification/SMS language in step with the app language.
+    if (auth.user.locale != api.language) repo.updateLocale(api.language).catchError((_) {});
   }
 
   Future<void> refreshUser() async {
@@ -57,13 +59,32 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Signs out this device: unregisters push and revokes the refresh token.
   Future<void> signOut() async {
-    // Unregister while the token is still valid so this phone stops getting pushes.
-    if (api.token != null) await push.onSignedOut(repo);
-    api.token = null;
-    user = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
+    if (api.token != null) {
+      await push.onSignedOut(repo);
+      final refresh = api.refreshToken;
+      if (refresh != null) await repo.logout(refresh).catchError((_) {});
+    }
+    await _clear();
     notifyListeners();
+  }
+
+  /// Signs out every device (e.g. after losing a phone).
+  Future<void> signOutEverywhere() async {
+    await repo.logoutAll();
+    await signOut();
+  }
+
+  Future<void> _expired() async {
+    await _clear();
+    notifyListeners();
+  }
+
+  Future<void> _clear() async {
+    api.token = null;
+    api.refreshToken = null;
+    user = null;
+    await store.clear();
   }
 }

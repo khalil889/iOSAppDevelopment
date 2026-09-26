@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
+import '../l10n/l10n.dart';
+import '../l10n/labels.dart';
 import '../models/models.dart';
 import 'common.dart';
 
@@ -57,7 +59,7 @@ class GuideCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('from', style: t.labelSmall),
+                    Text(context.l10n.widgetFromPrice, style: t.labelSmall),
                     Text(formatMoney(guide.fromPriceMinor!, guide.currency ?? 'USD'), style: t.titleSmall),
                   ],
                 ),
@@ -94,14 +96,14 @@ class SiteCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      StatusChip(titleCase(site.category)),
+                      StatusChip(context.l10n.siteCategory(site.category)),
                       const SizedBox(width: 8),
                       if (site.city != null) Text(site.city!.name, style: t.bodySmall),
-                      if (site.distanceKm != null) Text(' · ${site.distanceKm!.toStringAsFixed(1)} km', style: t.bodySmall),
+                      if (site.distanceKm != null) Text(' · ${context.l10n.widgetDistanceKm(site.distanceKm!.toStringAsFixed(1))}', style: t.bodySmall),
                       const Spacer(),
                       if (site.requiresLicensedGuide)
                         Tooltip(
-                          message: 'A licensed guide is required here',
+                          message: context.l10n.widgetLicensedGuideRequired,
                           child: Icon(Icons.badge_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
                         ),
                     ],

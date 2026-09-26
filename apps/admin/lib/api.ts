@@ -1,10 +1,14 @@
 'use client';
 
+import { getStoredLocale } from './locale';
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api';
-const TOKEN_KEY = 'tg_admin_token';
+const ACCESS_KEY = 'tg_admin_access';
+const REFRESH_KEY = 'tg_admin_refresh';
 
 export type VerificationStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 export type KycStatus = 'NOT_STARTED' | 'CLEAR' | 'CONSIDER' | 'FAILED';
+export type IdentityStatus = 'NOT_STARTED' | 'PENDING' | 'APPROVED' | 'RETRY' | 'REJECTED';
 
 export interface AdminGuide {
   id: string;
@@ -28,6 +32,10 @@ export interface AdminGuide {
     score: number;
     checks: Record<string, { passed: boolean; detail?: string }>;
   } | null;
+  /** ID document + selfie check; approval requires APPROVED. */
+  identityStatus?: IdentityStatus;
+  identityCheckedAt?: string | null;
+  identityReview?: { labels?: string[]; comment?: string | null } | null;
   ratingAvg: number;
   ratingCount: number;
   user: { id: string; fullName: string; email: string | null; phone: string | null; avatarUrl: string | null; phoneVerifiedAt: string | null };
@@ -49,26 +57,70 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Tokens live in sessionStorage: they survive a reload but not closing the
+ * tab, and aren't shared with other tabs or kept on disk long-term.
+ */
 export const auth = {
   get token() {
-    return typeof window === 'undefined' ? null : window.localStorage.getItem(TOKEN_KEY);
+    return typeof window === 'undefined' ? null : window.sessionStorage.getItem(ACCESS_KEY);
   },
-  set(token: string) {
-    window.localStorage.setItem(TOKEN_KEY, token);
+  get refreshToken() {
+    return typeof window === 'undefined' ? null : window.sessionStorage.getItem(REFRESH_KEY);
+  },
+  set(accessToken: string, refreshToken: string) {
+    window.sessionStorage.setItem(ACCESS_KEY, accessToken);
+    window.sessionStorage.setItem(REFRESH_KEY, refreshToken);
   },
   clear() {
-    window.localStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(ACCESS_KEY);
+    window.sessionStorage.removeItem(REFRESH_KEY);
+    window.localStorage.removeItem('tg_admin_token'); // pre-refresh-token versions
   },
 };
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** The API localizes error messages from this header. */
+const baseHeaders = (): Record<string, string> => ({
+  'content-type': 'application/json',
+  'accept-language': getStoredLocale(),
+});
+
+let refreshing: Promise<boolean> | null = null;
+
+/** Single-flight refresh: refresh tokens are single-use. */
+function refreshTokens(): Promise<boolean> {
+  refreshing ??= (async () => {
+    const refreshToken = auth.refreshToken;
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: baseHeaders(),
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const body = await res.json();
+      auth.set(body.accessToken, body.refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+export async function api<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('content-type', 'application/json');
+  headers.set('accept-language', getStoredLocale());
   if (auth.token) headers.set('authorization', `Bearer ${auth.token}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && auth.token && retry && (await refreshTokens())) return api<T>(path, init, false);
     if (res.status === 401) auth.clear();
     const msg = Array.isArray(body.message) ? body.message.join(', ') : body.message ?? res.statusText;
     throw new ApiError(res.status, msg, body.error);
@@ -76,13 +128,25 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+/** Only same-site paths are allowed as post-login redirects. */
+export function safeNextPath(next: string | null): string {
+  return next && /^\/(?![/\\])[\w\-./?=&%]*$/.test(next) ? next : '/analytics';
+}
+
 export const adminApi = {
   login: (email: string, password: string) =>
-    api<{ accessToken: string; user: { role: string; fullName: string } }>('/auth/login', {
+    api<{ accessToken: string; refreshToken: string; user: { role: string; fullName: string } }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
   me: () => api<{ id: string; role: string; fullName: string }>('/auth/me'),
+  logout: () => {
+    const refreshToken = auth.refreshToken;
+    auth.clear();
+    return refreshToken
+      ? fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: baseHeaders(), body: JSON.stringify({ refreshToken }) }).catch(() => undefined)
+      : Promise.resolve();
+  },
   counts: () => api<Record<VerificationStatus, number>>('/admin/guides/counts'),
   queue: (status: VerificationStatus, page = 1) =>
     api<Paginated<AdminGuide>>(`/admin/guides?status=${status}&page=${page}&limit=20`),
@@ -160,21 +224,137 @@ export const opsApi = {
     api<SosAlert>(`/admin/sos/${id}/acknowledge`, { method: 'POST', body: JSON.stringify({ note }) }),
 };
 
-/** Minor units → display string; JOD/KWD/BHD/OMR use 3 decimals. */
-export const fmtMoney = (minor: number, currency: string) => {
-  const exp = ['JOD', 'KWD', 'BHD', 'OMR', 'TND'].includes(currency) ? 3 : 2;
-  const value = minor / 10 ** exp;
-  const digits = Number.isInteger(value) ? 0 : exp;
-  return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+/* ---------------------------------------------------------------- */
+/* Payouts                                                            */
+/* ---------------------------------------------------------------- */
+
+export type PayoutStatus = 'PENDING' | 'PAID' | 'FAILED';
+
+export interface OwedRow {
+  guideId: string;
+  guideName: string;
+  currency: string;
+  amountMinor: number;
+  paymentCount: number;
+  oldestReleasedAt: string;
+  ibanMasked: string | null;
+  holderName: string | null;
+}
+
+export interface PayoutRun {
+  id: string;
+  currency: string;
+  totalMinor: number;
+  payoutCount: number;
+  createdAt: string;
+  createdById: string;
+  /** Bank-file downloads; uploading the same file twice would pay twice. */
+  exportCount?: number;
+  lastExportedAt?: string | null;
+}
+
+export type PayoutSkipReason = 'NO_ACCOUNT' | 'ACCOUNT_RECENTLY_CHANGED';
+
+/** Handed from the payouts page to the new run's page (sessionStorage) so it can list who was skipped. */
+export interface SkippedGuide {
+  guideId: string;
+  reason: PayoutSkipReason;
+  guideName: string;
+  amountMinor: number | null;
+}
+export const skippedKey = (runId: string) => `tg_admin_run_skipped:${runId}`;
+
+export interface Payout {
+  id: string;
+  guideId: string;
+  guide: { id: string; name: string; phone: string | null };
+  amountMinor: number;
+  currency: string;
+  paymentCount: number;
+  status: PayoutStatus;
+  holderName: string;
+  ibanMasked: string;
+  note: string | null;
+  paidAt: string | null;
+}
+
+export interface PayoutRunDetail extends PayoutRun {
+  payouts: Payout[];
+}
+
+export const payoutsApi = {
+  owed: () => api<OwedRow[]>('/admin/payouts/owed'),
+  runs: () => api<PayoutRun[]>('/admin/payouts/runs'),
+  createRun: (currency: string) =>
+    api<{ run: PayoutRun; skippedGuideIds: string[]; skipped?: Array<{ guideId: string; reason: PayoutSkipReason }> }>('/admin/payouts/runs', { method: 'POST', body: JSON.stringify({ currency }) }),
+  run: (id: string) => api<PayoutRunDetail>(`/admin/payouts/runs/${id}`),
+  markPaid: (id: string, reference: string) =>
+    api<Payout>(`/admin/payouts/${id}/paid`, { method: 'POST', body: JSON.stringify({ reference }) }),
+  /** PENDING → FAILED, or PAID → FAILED when the bank returned the transfer. */
+  markFailed: (id: string, reason: string) =>
+    api<Payout>(`/admin/payouts/${id}/failed`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  /** The bank file needs the bearer token, so it can't be a plain link: fetch it and hand the browser a Blob. */
+  async downloadCsv(id: string, filename: string, retry = true): Promise<void> {
+    const headers: Record<string, string> = { 'accept-language': getStoredLocale() };
+    if (auth.token) headers.authorization = `Bearer ${auth.token}`;
+    const res = await fetch(`${API_URL}/admin/payouts/runs/${id}/export`, { headers, cache: 'no-store' });
+    if (!res.ok) {
+      if (res.status === 401 && auth.token && retry && (await refreshTokens())) return payoutsApi.downloadCsv(id, filename, false);
+      const body = await res.json().catch(() => ({}));
+      const msg = Array.isArray(body.message) ? body.message.join(', ') : body.message ?? res.statusText;
+      throw new ApiError(res.status, msg, body.error);
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Give the browser a moment to start the download before revoking.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  },
 };
 
-export const fmtDate = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+/* ---------------------------------------------------------------- */
+/* Analytics                                                          */
+/* ---------------------------------------------------------------- */
 
-export const timeAgo = (s: string | null | undefined) => {
-  if (!s) return '—';
-  const h = Math.round((Date.now() - new Date(s).getTime()) / 3_600_000);
-  if (h < 1) return 'just now';
-  if (h < 48) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
+export type AnalyticsDays = 7 | 30 | 90 | 365;
+
+interface BookingCounts {
+  created: number;
+  paid: number;
+  completed: number;
+  cancelled: number;
+  conversion: number;
+}
+
+interface MoneyTotals {
+  gmvMinor: number;
+  refundsMinor: number;
+  guidePayoutsMinor: number;
+  platformRevenueMinor: number;
+  inEscrowMinor: number;
+}
+
+export interface Analytics {
+  range: { from: string; to: string; days: number; currency: string; timeZone: string };
+  bookings: BookingCounts & { previous?: BookingCounts };
+  money: MoneyTotals & { previous?: MoneyTotals };
+  users: { newTourists: number; newGuides: number };
+  reviews: { count: number; avgRating: number };
+  safety: { disputes: number; openDisputes: number; sosAlerts: number };
+  daily: Array<{ date: string; bookings: number; gmvMinor: number }>;
+  topCities: Array<{ id: string; name: string; nameAr: string | null; bookings: number; gmvMinor: number }>;
+  topGuides: Array<{ id: string; name: string; rating: number; bookings: number; gmvMinor: number }>;
+  guideFunnel: Partial<Record<VerificationStatus, number>>;
+  currencies: string[];
+}
+
+export const analyticsApi = {
+  overview: (days: AnalyticsDays, currency: string) =>
+    api<Analytics>(`/admin/analytics?days=${days}&currency=${encodeURIComponent(currency)}`),
 };
+
+// Date and money formatting is locale-aware: see lib/locale.ts and useI18n().

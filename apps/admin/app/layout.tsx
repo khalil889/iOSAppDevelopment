@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { I18nProvider } from '@/lib/i18n';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -8,8 +9,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    // lang/dir are switched on the client by I18nProvider once the saved locale is known.
+    <html lang="en" dir="ltr" suppressHydrationWarning>
+      <body>
+        <I18nProvider>{children}</I18nProvider>
+      </body>
     </html>
   );
 }
