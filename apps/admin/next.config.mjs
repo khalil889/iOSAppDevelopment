@@ -23,6 +23,10 @@ const csp = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // Docker builds set NEXT_OUTPUT=standalone for a self-contained server.
+  ...(process.env.NEXT_OUTPUT === 'standalone'
+    ? { output: 'standalone', outputFileTracingRoot: new URL('../../', import.meta.url).pathname }
+    : {}),
   poweredByHeader: false,
   async headers() {
     return [

@@ -11,7 +11,7 @@ apps/
 services/
   api/        NestJS REST API — PostgreSQL + PostGIS (TypeORM)
 infra/        Postgres init scripts
-docker-compose.yml   PostGIS 16
+docker-compose.yml   PostGIS 16 (+ api and admin containers with --profile app)
 ```
 
 ## Quick start
@@ -90,7 +90,7 @@ has a unit test next to it:
 
 | Area | Endpoints |
 | --- | --- |
-| Auth | `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `GET /auth/me` |
+| Auth | `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/logout-all` · `GET /auth/me` |
 | Explore | `GET /countries` · `GET /cities` · `GET /sites?q&countryId&cityId&category&lat&lng&radiusKm` · `GET /sites/:id` |
 | Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/license-upload` · `POST /guides/me/application` · `GET /guides/me/dashboard` |
 | Availability | `GET /availability/slots?packageId&date` · `GET/PUT /guides/me/availability` |
@@ -272,11 +272,76 @@ and an iOS app. Then:
 The mobile app has no remaining stubs. Its payment sheet, GPS and push all use
 real SDKs, with safe fallbacks when they aren't configured.
 
+## Running in production
+
+### Containers
+
+```bash
+docker build -f services/api/Dockerfile -t tourguide-api .
+docker build -f apps/admin/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api -t tourguide-admin .
+docker compose --profile app up --build      # whole stack locally, stub providers
+```
+
+Build both images from the repo root, because the workspaces share one lockfile.
+The API image runs `node dist/main.js` as a non-root user. It applies pending
+migrations on boot (`DB_RUN_MIGRATIONS=true`), writes JSON logs and has a
+health check on `/api/health/live`. The admin image is a standalone Next.js
+server on port 3001. Its `NEXT_PUBLIC_*` values are compiled in, so pass them as
+build args.
+
+### Checklist
+
+With `NODE_ENV=production`, the API **refuses to start** if any of these is
+still set to a development default:
+
+- a weak `JWT_SECRET`;
+- stub payments or SMS;
+- local file storage;
+- localhost CORS origins;
+- a non-https `PUBLIC_API_URL`;
+- Moyasar without `MOYASAR_WEBHOOK_SECRET`.
+
+In production it also turns off Swagger (set `ENABLE_SWAGGER=true` to keep it)
+and OTP echo.
+
+- Behind a load balancer, set `TRUST_PROXY=true` so rate limits see real
+  client IPs.
+- Set `SMS_ALLOWED_PREFIXES` to the countries you serve.
+- `/api/health` checks the database and reports pending migrations; use it as
+  the readiness probe. Use `/api/health/live` for liveness.
+- Every response carries an `x-request-id`, and the same id appears on the
+  request's log line.
+- Never run the seed against production. It wipes tables and refuses to run
+  unless `SEED_ALLOW_PRODUCTION=yes`.
+
+### Security model
+
+- **Sessions.** Access tokens are HS256 JWTs that last 15 minutes. Each
+  request re-checks the user's role and active flag, with a 30-second cache.
+  Refresh tokens rotate on every use and are stored only as SHA-256 hashes.
+  Replaying an old refresh token revokes that whole login family.
+  `POST /auth/logout-all` ends every session.
+- **Where tokens live.** The mobile app keeps tokens in the Keychain/Keystore
+  (`flutter_secure_storage`). The admin portal keeps them in `sessionStorage`,
+  behind a strict CSP.
+- **Password login.** It locks after `LOGIN_MAX_ATTEMPTS` failures for
+  `LOGIN_LOCKOUT_MINUTES`; signing in with a phone code clears the lock.
+- **Phone codes (OTP).**
+  - A code is single-use, and its attempts are counted atomically.
+  - Each phone is capped at 5 codes and 10 wrong guesses per hour.
+  - Admin accounts can't sign in with a phone code alone.
+- **Money.** Refunds and releases atomically claim the escrow (`SETTLING`)
+  first, so a race between a cancel, a dispute and a release can't pay out
+  twice. Payments that arrive for cancelled or unknown bookings are refunded.
+- **Rate limits.** They are per IP and kept in memory, so with several API
+  instances the effective limit is multiplied. A shared Redis store for the
+  throttler is a planned follow-up.
+
 ## Tests
 
 ```bash
-npm run api:test                     # 128 unit tests: business rules, availability, all providers (mocked HTTP)
-npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications
+npm run api:test                     # 133 unit tests: business rules, availability, all providers (mocked HTTP)
+npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications, sessions, races
 cd apps/mobile && flutter test       # models, booking slots, payment sheet, license upload, SOS, inbox
 cd apps/admin && npx tsc --noEmit    # type-check the admin portal
 ```
@@ -290,7 +355,7 @@ type-check and build; Flutter analyze and test.
 
 A real KYC provider, automated guide payouts and payout onboarding,
 multi-currency price filtering (`maxPriceMinor` and price sort compare raw
-minor units, so filter by city or country too), refresh tokens, and PDF
+minor units, so filter by city or country too), and PDF
 uploads from the app (the API already accepts PDFs; the app currently sends
 photos).
 
