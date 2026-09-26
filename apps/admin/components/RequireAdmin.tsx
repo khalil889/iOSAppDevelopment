@@ -3,6 +3,8 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { adminApi, auth, opsApi } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
+import { LanguageToggle } from './LanguageToggle';
 
 /** Client-side gate: redirects to /login unless the stored token belongs to an admin. */
 export function RequireAdmin({ children }: { children: ReactNode }) {
@@ -10,6 +12,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [name, setName] = useState<string | null>(null);
   const [openSos, setOpenSos] = useState(0);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!auth.token) {
@@ -30,27 +33,30 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
       });
   }, [router, pathname]);
 
-  if (!name) return <div className="center muted">Checking session…</div>;
+  if (!name) return <div className="center muted">{t('auth.checking')}</div>;
 
   return (
     <div className="shell">
       <header className="topbar">
         <a href="/guides" className="brand">
-          <span className="logo">◎</span> TourGuide Admin
+          <span className="logo">◎</span> {t('app.title')}
         </a>
-        <nav>
+        <nav aria-label={t('nav.label')}>
           <a href="/guides" className={pathname.startsWith('/guides') ? 'active' : ''}>
-            Guide verification
+            {t('nav.guides')}
           </a>
           <a href="/disputes" className={pathname.startsWith('/disputes') ? 'active' : ''}>
-            Disputes
+            {t('nav.disputes')}
           </a>
           <a href="/sos" className={pathname.startsWith('/sos') ? 'active' : ''}>
-            SOS {openSos > 0 && <span className="pill-alert">{openSos}</span>}
+            {t('nav.sos')} {openSos > 0 && <span className="pill-alert">{openSos}</span>}
           </a>
         </nav>
         <div className="spacer" />
-        <span className="muted small">{name}</span>
+        <LanguageToggle />
+        <span className="muted small">
+          <bdi>{name}</bdi>
+        </span>
         <button
           className="btn ghost small"
           onClick={async () => {
@@ -58,7 +64,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
             router.replace('/login');
           }}
         >
-          Sign out
+          {t('nav.signOut')}
         </button>
       </header>
       <main className="content">{children}</main>

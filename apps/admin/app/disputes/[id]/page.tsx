@@ -4,13 +4,29 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { RequireAdmin } from '@/components/RequireAdmin';
-import { AdminDispute, DisputeResolution, fmtDate, fmtMoney, opsApi } from '@/lib/api';
+import { StatusBadge } from '@/components/StatusBadge';
+import { AdminDispute, DisputeResolution, opsApi } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 
-const OPTIONS: Array<{ value: DisputeResolution; label: string; help: string }> = [
-  { value: 'REFUND_TOURIST', label: 'Refund tourist in full', help: 'The guide receives nothing.' },
-  { value: 'PARTIAL_REFUND', label: 'Partial refund', help: 'Refund a percentage; the guide gets the rest minus the platform fee.' },
-  { value: 'RELEASE_TO_GUIDE', label: 'Release to guide', help: 'No refund; the guide is paid as normal.' },
-];
+const OPTIONS: DisputeResolution[] = ['REFUND_TOURIST', 'PARTIAL_REFUND', 'RELEASE_TO_GUIDE'];
+
+/** Phone · email, each kept left-to-right inside RTL text. */
+function ContactLine({ values }: { values: Array<string | null | undefined> }) {
+  const parts = values.filter((v): v is string => Boolean(v));
+  if (!parts.length) return null;
+  return (
+    <div className="muted small">
+      {parts.map((p, i) => (
+        <span key={p}>
+          {i > 0 && ' · '}
+          <span className="ltr" dir="ltr">
+            {p}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function Detail() {
   const { id } = useParams<{ id: string }>();
@@ -21,13 +37,14 @@ function Detail() {
   const [percent, setPercent] = useState(50);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const { t, label, formatDate, formatMoney } = useI18n();
 
   const load = useCallback(() => {
     opsApi.dispute(id).then(setD).catch((e) => setError(e.message));
   }, [id]);
   useEffect(load, [load]);
 
-  if (!d) return <div className="muted">{error ?? 'Loading…'}</div>;
+  if (!d) return <div className="muted">{error ?? t('common.loading')}</div>;
 
   const b = d.booking;
   const total = b.payment?.amountMinor ?? b.totalMinor;
@@ -37,7 +54,7 @@ function Detail() {
   const open = d.status === 'OPEN';
 
   async function resolve() {
-    if (!confirm(`Refund ${fmtMoney(refund, b.currency)} and pay the guide ${fmtMoney(guideGets, b.currency)}? This moves money and can't be undone.`)) return;
+    if (!confirm(t('dispute.confirm', { refund: formatMoney(refund, b.currency), payout: formatMoney(guideGets, b.currency) }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -46,7 +63,7 @@ function Detail() {
         refundPercent: resolution === 'PARTIAL_REFUND' ? percent : undefined,
         note: note.trim() || undefined,
       });
-      setNotice('Dispute resolved and escrow settled.');
+      setNotice(t('dispute.resolved'));
       load();
     } catch (e) {
       setError((e as Error).message);
@@ -58,12 +75,12 @@ function Detail() {
   return (
     <>
       <Link href="/disputes" className="muted small">
-        ← Back to disputes
+        {t('dispute.back')}
       </Link>
       <div className="page-head">
         <div>
           <h2>{b.package?.title}</h2>
-          <span className={`badge ${open ? 'warn' : 'ok'}`}>{d.status.toLowerCase()}</span>
+          <StatusBadge kind="disputeStatus" tone={open ? 'warn' : 'ok'} status={d.status} />
         </div>
       </div>
       {notice && <div className="alert ok">{notice}</div>}
@@ -71,103 +88,113 @@ function Detail() {
 
       <div className="grid">
         <section className="card">
-          <h3>Complaint</h3>
+          <h3>{t('dispute.complaint')}</h3>
           <dl>
-            <dt>Reason</dt>
-            <dd>{d.reason.replace(/_/g, ' ').toLowerCase()}</dd>
-            <dt>Opened by</dt>
-            <dd>{d.openedById === b.touristId ? 'Tourist' : 'Guide'}</dd>
-            <dt>Opened</dt>
-            <dd>{fmtDate(d.createdAt)}</dd>
+            <dt>{t('dispute.reason')}</dt>
+            <dd>{label('disputeReason', d.reason)}</dd>
+            <dt>{t('dispute.openedBy')}</dt>
+            <dd>{d.openedById === b.touristId ? t('common.tourist') : t('common.guide')}</dd>
+            <dt>{t('dispute.opened')}</dt>
+            <dd>{formatDate(d.createdAt)}</dd>
           </dl>
-          <p className="bio">{d.description}</p>
+          <p className="bio" dir="auto">
+            {d.description}
+          </p>
         </section>
         <section className="card">
-          <h3>Booking</h3>
+          <h3>{t('dispute.booking')}</h3>
           <dl>
-            <dt>Tour date</dt>
-            <dd>{fmtDate(b.startAt)}</dd>
-            <dt>City</dt>
+            <dt>{t('dispute.tourDate')}</dt>
+            <dd>{formatDate(b.startAt)}</dd>
+            <dt>{t('dispute.city')}</dt>
             <dd>{b.package?.city?.name ?? '—'}</dd>
-            <dt>Group</dt>
+            <dt>{t('dispute.group')}</dt>
             <dd>{b.groupSize}</dd>
-            <dt>Status</dt>
-            <dd>{b.status.replace('_', ' ').toLowerCase()}</dd>
-            <dt>Completed</dt>
-            <dd>{fmtDate(b.completedAt)}</dd>
+            <dt>{t('dispute.status')}</dt>
+            <dd>{label('booking', b.status)}</dd>
+            <dt>{t('dispute.completed')}</dt>
+            <dd>{formatDate(b.completedAt)}</dd>
           </dl>
         </section>
         <section className="card">
-          <h3>People</h3>
+          <h3>{t('dispute.people')}</h3>
           <dl>
-            <dt>Tourist</dt>
+            <dt>{t('common.tourist')}</dt>
             <dd>
               {b.tourist?.fullName}
-              <div className="muted small">{[b.tourist?.phone, b.tourist?.email].filter(Boolean).join(' · ')}</div>
+              <ContactLine values={[b.tourist?.phone, b.tourist?.email]} />
             </dd>
-            <dt>Guide</dt>
+            <dt>{t('common.guide')}</dt>
             <dd>
               {b.guide?.user?.fullName}
-              <div className="muted small">{[b.guide?.user?.phone, b.guide?.user?.email].filter(Boolean).join(' · ')}</div>
+              <ContactLine values={[b.guide?.user?.phone, b.guide?.user?.email]} />
             </dd>
           </dl>
         </section>
         <section className="card">
-          <h3>Money</h3>
+          <h3>{t('dispute.money')}</h3>
           <dl>
-            <dt>Paid</dt>
-            <dd>{fmtMoney(total, b.currency)}</dd>
-            <dt>Guide share</dt>
-            <dd>{fmtMoney(b.guidePayoutMinor, b.currency)}</dd>
-            <dt>Escrow</dt>
-            <dd>{b.payment?.escrowStatus?.replace('_', ' ').toLowerCase() ?? '—'}</dd>
+            <dt>{t('dispute.paid')}</dt>
+            <dd>{formatMoney(total, b.currency)}</dd>
+            <dt>{t('dispute.guideShare')}</dt>
+            <dd>{formatMoney(b.guidePayoutMinor, b.currency)}</dd>
+            <dt>{t('dispute.escrow')}</dt>
+            <dd>{label('escrow', b.payment?.escrowStatus)}</dd>
             {!open && (
               <>
-                <dt>Refunded</dt>
-                <dd>{fmtMoney(b.payment?.refundedMinor ?? 0, b.currency)}</dd>
-                <dt>Released</dt>
-                <dd>{fmtMoney(b.payment?.releasedMinor ?? 0, b.currency)}</dd>
+                <dt>{t('dispute.refunded')}</dt>
+                <dd>{formatMoney(b.payment?.refundedMinor ?? 0, b.currency)}</dd>
+                <dt>{t('dispute.released')}</dt>
+                <dd>{formatMoney(b.payment?.releasedMinor ?? 0, b.currency)}</dd>
               </>
             )}
-            <dt>Gateway</dt>
+            <dt>{t('dispute.gateway')}</dt>
             <dd className="mono small">
-              {b.payment?.provider} {b.payment?.providerRef}
+              <span className="ltr" dir="ltr">
+                {b.payment?.provider} {b.payment?.providerRef}
+              </span>
             </dd>
           </dl>
         </section>
       </div>
 
       <section className="card decision">
-        <h3>Resolution</h3>
+        <h3>{t('dispute.resolution')}</h3>
         {!open ? (
           <p>
-            <b>{(d.resolution ?? '').replace(/_/g, ' ').toLowerCase()}</b>
-            {d.refundPercent ? ` (${d.refundPercent}%)` : ''} on {fmtDate(d.resolvedAt)}
-            {d.resolutionNote && <span className="muted"> — {d.resolutionNote}</span>}
+            <b>{label('resolution', d.resolution)}</b>
+            {d.refundPercent ? ` (${d.refundPercent}%)` : ''} {t('dispute.resolvedOn', { date: formatDate(d.resolvedAt) })}
+            {d.resolutionNote && (
+              <span className="muted">
+                {' '}
+                — <bdi>{d.resolutionNote}</bdi>
+              </span>
+            )}
           </p>
         ) : (
           <div className="stack">
             {OPTIONS.map((o) => (
-              <label key={o.value} className="radio">
-                <input type="radio" name="resolution" checked={resolution === o.value} onChange={() => setResolution(o.value)} />
+              <label key={o} className="radio">
+                <input type="radio" name="resolution" checked={resolution === o} onChange={() => setResolution(o)} />
                 <span>
-                  <b>{o.label}</b> <span className="muted small">{o.help}</span>
+                  <b>{t(`dispute.opt.${o}`)}</b> <span className="muted small">{t(`dispute.opt.${o}.help`)}</span>
                 </span>
               </label>
             ))}
             {resolution === 'PARTIAL_REFUND' && (
               <label>
-                Refund percentage: {percent}%
+                {t('dispute.refundPct', { percent })}
                 <input type="range" min={1} max={99} value={percent} onChange={(e) => setPercent(Number(e.target.value))} />
               </label>
             )}
             <div className="alert neutral">
-              Tourist refund <b>{fmtMoney(refund, b.currency)}</b> · Guide receives <b>{fmtMoney(guideGets, b.currency)}</b>
+              {t('dispute.touristRefund')} <b>{formatMoney(refund, b.currency)}</b> · {t('dispute.guideReceives')}{' '}
+              <b>{formatMoney(guideGets, b.currency)}</b>
             </div>
-            <input placeholder="Note for the audit log (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <input placeholder={t('dispute.notePlaceholder')} value={note} onChange={(e) => setNote(e.target.value)} />
             <div className="row">
               <button className="btn primary" disabled={busy} onClick={resolve}>
-                {busy ? 'Settling…' : 'Resolve dispute'}
+                {busy ? t('dispute.settling') : t('dispute.resolve')}
               </button>
             </div>
           </div>

@@ -2,9 +2,21 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { RequireAdmin } from '@/components/RequireAdmin';
-import { fmtDate, opsApi, SosAlert, timeAgo } from '@/lib/api';
+import { StatusBadge } from '@/components/StatusBadge';
+import { opsApi, SosAlert } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 
 type Filter = 'open' | 'acknowledged' | 'all';
+
+/** Tap-to-call link; the number stays left-to-right in Arabic text. */
+function Phone({ value }: { value?: string | null }) {
+  if (!value) return null;
+  return (
+    <a href={`tel:${value}`} dir="ltr" className="ltr">
+      {value}
+    </a>
+  );
+}
 
 function SosBoard() {
   const [filter, setFilter] = useState<Filter>('open');
@@ -12,6 +24,7 @@ function SosBoard() {
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const { t, label, formatDate, timeAgo } = useI18n();
 
   const load = useCallback(() => {
     opsApi.sos(filter).then(setAlerts).catch((e) => setError(e.message));
@@ -41,68 +54,76 @@ function SosBoard() {
     <>
       <div className="page-head">
         <div>
-          <h2>SOS alerts</h2>
-          <p className="muted">Raised from the live-tour screen. Refreshes every 15 seconds.</p>
+          <h2>{t('sos.title')}</h2>
+          <p className="muted">{t('sos.subtitle')}</p>
         </div>
         <button className="btn ghost" onClick={load}>
-          Refresh
+          {t('common.refresh')}
         </button>
       </div>
       <div className="tabs">
         {(['open', 'acknowledged', 'all'] as const).map((f) => (
           <button key={f} className={f === filter ? 'tab active' : 'tab'} onClick={() => setFilter(f)}>
-            {f}
+            {t(`sos.filter.${f}`)}
           </button>
         ))}
       </div>
       {error && <div className="alert bad">{error}</div>}
-      {!alerts && !error && <div className="muted">Loading…</div>}
-      {alerts && alerts.length === 0 && <div className="empty card">{filter === 'open' ? 'No open alerts.' : 'Nothing here.'}</div>}
+      {!alerts && !error && <div className="muted">{t('common.loading')}</div>}
+      {alerts && alerts.length === 0 && <div className="empty card">{filter === 'open' ? t('sos.emptyOpen') : t('sos.emptyOther')}</div>}
       <div className="stack">
         {alerts?.map((a) => (
           <section key={a.id} className={`card sos ${a.acknowledgedAt ? '' : 'sos-open'}`}>
             <div className="row">
-              <span className={`badge ${a.acknowledgedAt ? 'ok' : 'bad'}`}>{a.acknowledgedAt ? 'acknowledged' : 'open'}</span>
+              <StatusBadge kind="sosStatus" tone={a.acknowledgedAt ? 'ok' : 'bad'} status={a.acknowledgedAt ? 'acknowledged' : 'open'} />
               <strong>{a.booking.packageTitle}</strong>
               <span className="muted small">
-                {a.booking.city} · raised by {a.raisedBy.toLowerCase()} {timeAgo(a.createdAt)}
+                {a.booking.city} · {t('sos.raisedBy', { who: label('role', a.raisedBy), ago: timeAgo(a.createdAt) })}
               </span>
             </div>
-            {a.message && <p className="sos-message">“{a.message}”</p>}
+            {a.message && (
+              <p className="sos-message" dir="auto">
+                “{a.message}”
+              </p>
+            )}
             <div className="grid">
               <dl>
-                <dt>Tourist</dt>
+                <dt>{t('sos.tourist')}</dt>
                 <dd>
-                  {a.booking.tourist.name} {a.booking.tourist.phone && <a href={`tel:${a.booking.tourist.phone}`}>{a.booking.tourist.phone}</a>}
+                  {a.booking.tourist.name} <Phone value={a.booking.tourist.phone} />
                 </dd>
-                <dt>Guide</dt>
+                <dt>{t('sos.guide')}</dt>
                 <dd>
-                  {a.booking.guide.name} {a.booking.guide.phone && <a href={`tel:${a.booking.guide.phone}`}>{a.booking.guide.phone}</a>}
+                  {a.booking.guide.name} <Phone value={a.booking.guide.phone} />
                 </dd>
-                <dt>Tour</dt>
+                <dt>{t('sos.tour')}</dt>
                 <dd>
-                  {fmtDate(a.booking.startAt)} · {a.booking.groupSize} people · {a.booking.status.replace('_', ' ').toLowerCase()}
+                  {formatDate(a.booking.startAt)} · {t('sos.people', { n: a.booking.groupSize })} · {label('booking', a.booking.status)}
                 </dd>
               </dl>
               <dl>
-                <dt>Location</dt>
+                <dt>{t('sos.location')}</dt>
                 <dd>
                   {a.location ? (
-                    <a href={a.location.mapsUrl} target="_blank" rel="noreferrer">
+                    <a href={a.location.mapsUrl} target="_blank" rel="noreferrer" dir="ltr" className="ltr">
                       {a.location.lat.toFixed(5)}, {a.location.lng.toFixed(5)} ↗
                     </a>
                   ) : (
-                    <span className="muted">not shared</span>
+                    <span className="muted">{t('sos.notShared')}</span>
                   )}
                 </dd>
-                <dt>Raised</dt>
-                <dd>{fmtDate(a.createdAt)}</dd>
+                <dt>{t('sos.raised')}</dt>
+                <dd>{formatDate(a.createdAt)}</dd>
                 {a.acknowledgedAt && (
                   <>
-                    <dt>Handled</dt>
+                    <dt>{t('sos.handled')}</dt>
                     <dd>
-                      {fmtDate(a.acknowledgedAt)}
-                      {a.resolutionNote && <div className="muted small">{a.resolutionNote}</div>}
+                      {formatDate(a.acknowledgedAt)}
+                      {a.resolutionNote && (
+                        <div className="muted small" dir="auto">
+                          {a.resolutionNote}
+                        </div>
+                      )}
                     </dd>
                   </>
                 )}
@@ -111,12 +132,12 @@ function SosBoard() {
             {!a.acknowledgedAt && (
               <div className="row">
                 <input
-                  placeholder="What did you do? (called tourist, sent help, false alarm…)"
+                  placeholder={t('sos.notePlaceholder')}
                   value={notes[a.id] ?? ''}
                   onChange={(e) => setNotes({ ...notes, [a.id]: e.target.value })}
                 />
                 <button className="btn primary" disabled={busy === a.id} onClick={() => acknowledge(a)}>
-                  {busy === a.id ? 'Saving…' : 'Acknowledge'}
+                  {busy === a.id ? t('sos.saving') : t('sos.acknowledge')}
                 </button>
               </div>
             )}

@@ -1,5 +1,7 @@
 'use client';
 
+import { getStoredLocale } from './locale';
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 const ACCESS_KEY = 'tg_admin_access';
 const REFRESH_KEY = 'tg_admin_refresh';
@@ -72,6 +74,12 @@ export const auth = {
   },
 };
 
+/** The API localizes error messages from this header. */
+const baseHeaders = (): Record<string, string> => ({
+  'content-type': 'application/json',
+  'accept-language': getStoredLocale(),
+});
+
 let refreshing: Promise<boolean> | null = null;
 
 /** Single-flight refresh: refresh tokens are single-use. */
@@ -82,7 +90,7 @@ function refreshTokens(): Promise<boolean> {
     try {
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: baseHeaders(),
         body: JSON.stringify({ refreshToken }),
       });
       if (!res.ok) return false;
@@ -101,6 +109,7 @@ function refreshTokens(): Promise<boolean> {
 export async function api<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('content-type', 'application/json');
+  headers.set('accept-language', getStoredLocale());
   if (auth.token) headers.set('authorization', `Bearer ${auth.token}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
@@ -130,7 +139,7 @@ export const adminApi = {
     const refreshToken = auth.refreshToken;
     auth.clear();
     return refreshToken
-      ? fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ refreshToken }) }).catch(() => undefined)
+      ? fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: baseHeaders(), body: JSON.stringify({ refreshToken }) }).catch(() => undefined)
       : Promise.resolve();
   },
   counts: () => api<Record<VerificationStatus, number>>('/admin/guides/counts'),
@@ -210,21 +219,4 @@ export const opsApi = {
     api<SosAlert>(`/admin/sos/${id}/acknowledge`, { method: 'POST', body: JSON.stringify({ note }) }),
 };
 
-/** Minor units → display string; JOD/KWD/BHD/OMR use 3 decimals. */
-export const fmtMoney = (minor: number, currency: string) => {
-  const exp = ['JOD', 'KWD', 'BHD', 'OMR', 'TND'].includes(currency) ? 3 : 2;
-  const value = minor / 10 ** exp;
-  const digits = Number.isInteger(value) ? 0 : exp;
-  return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
-};
-
-export const fmtDate = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
-
-export const timeAgo = (s: string | null | undefined) => {
-  if (!s) return '—';
-  const h = Math.round((Date.now() - new Date(s).getTime()) / 3_600_000);
-  if (h < 1) return 'just now';
-  if (h < 48) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
-};
+// Date and money formatting is locale-aware: see lib/locale.ts and useI18n().
