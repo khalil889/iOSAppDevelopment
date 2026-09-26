@@ -90,7 +90,7 @@ has a unit test next to it:
 
 | Area | Endpoints |
 | --- | --- |
-| Auth | `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/logout-all` · `GET /auth/me` |
+| Auth | `PATCH /auth/me` (language) · `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/logout-all` · `GET /auth/me` |
 | Explore | `GET /countries` · `GET /cities` · `GET /sites?q&countryId&cityId&category&lat&lng&radiusKm` · `GET /sites/:id` |
 | Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/license-upload` · `POST /guides/me/application` · `GET /guides/me/dashboard` |
 | Availability | `GET /availability/slots?packageId&date` · `GET/PUT /guides/me/availability` |
@@ -272,6 +272,30 @@ and an iOS app. Then:
 The mobile app has no remaining stubs. Its payment sheet, GPS and push all use
 real SDKs, with safe fallbacks when they aren't configured.
 
+## Arabic and right-to-left
+
+Both apps run in English or Arabic, with fully mirrored layouts.
+
+- **Mobile.** Strings live in `apps/mobile/lib/l10n/app_{en,ar}.arb` (gen-l10n,
+  with Arabic plural forms). The app follows the device language until the user
+  picks one under *Account → Language*. The choice is saved on the profile too.
+  Dates use Arabic month names with Western digits. Phone numbers, times and
+  card numbers stay left-to-right.
+- **Admin.** A typed dictionary in `apps/admin/lib/i18n.tsx` (TypeScript fails
+  if Arabic misses a key), with an English / العربية toggle in the top bar.
+- **API.** Clients send `Accept-Language`, and for `ar` the API:
+  - returns the Arabic names and descriptions of countries, cities, sites and
+    tours (`nameAr`, `descriptionAr`, `titleAr` columns, falling back to
+    English when empty);
+  - translates domain and auth error messages. Validation errors from DTOs
+    stay in English.
+  - Endpoints that feed edit forms opt out with `@RawContent()` and return
+    both languages.
+- **Notifications and SMS.** Push and inbox notifications are written in each
+  recipient's saved language (`PATCH /auth/me {"locale": "ar"}`). So are OTP
+  texts. Mobishastra receives Arabic as UTF-8, so check Arabic delivery on
+  your account before launch; some routes need Unicode enabled.
+
 ## Running in production
 
 ### Containers
@@ -340,9 +364,9 @@ and OTP echo.
 ## Tests
 
 ```bash
-npm run api:test                     # 133 unit tests: business rules, availability, all providers (mocked HTTP)
-npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications, sessions, races
-cd apps/mobile && flutter test       # models, booking slots, payment sheet, license upload, SOS, inbox
+npm run api:test                     # 148 unit tests: business rules, availability, all providers (mocked HTTP)
+npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications, sessions, races, Arabic
+cd apps/mobile && flutter test       # models, booking slots, payment sheet, license upload, SOS, inbox, Arabic/RTL
 cd apps/admin && npx tsc --noEmit    # type-check the admin portal
 ```
 
