@@ -58,6 +58,10 @@ export class TourPackage extends BaseEntity {
   @Column({ default: true })
   isActive: boolean;
 
+  /** Storage keys of the tour photos, in display order (first = cover). */
+  @Column({ type: 'text', array: true, default: '{}' })
+  photoKeys: string[];
+
   @ManyToMany('Site')
   @JoinTable({ name: 'tour_package_sites', joinColumn: { name: 'packageId' }, inverseJoinColumn: { name: 'siteId' } })
   sites: Site[];

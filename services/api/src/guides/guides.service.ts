@@ -18,6 +18,7 @@ import { GuideVerificationEvent } from './guide-verification-event.entity';
 import { assertCanSubmitApplication } from './guide-verification.rules';
 import { Guide } from './guide.entity';
 import { presentGuide, PublicGuide } from './guide.presenter';
+import { withPhotoUrls } from '../packages/package-photos';
 
 const KYC_MAP: Record<string, KycStatus> = { clear: KycStatus.CLEAR, consider: KycStatus.CONSIDER, failed: KycStatus.FAILED };
 
@@ -156,7 +157,7 @@ export class GuidesService {
     return {
       ...guide,
       sites: (g?.sites ?? []).map((s) => ({ id: s.id, name: s.name, nameAr: s.nameAr, category: s.category })),
-      packages,
+      packages: await withPhotoUrls(this.storage, packages),
       reviews: reviews.map((r) => ({
         id: r.id,
         rating: r.rating,

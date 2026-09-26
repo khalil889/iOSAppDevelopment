@@ -292,3 +292,71 @@ describe('arabic', () => {
     await call('PATCH', '/auth/me', { locale: 'en' }, guide);
   });
 });
+
+describe('guide tours', () => {
+  const rebase = (url: string) => url.replace(/^https?:\/\/[^/]+\/api/, base);
+
+  it('lets a guide create, photograph, translate, edit and pause a tour', async () => {
+    const guide = await login('faisal@guides.test');
+    const cities = await call('GET', '/cities');
+    const riyadh = cities.body.find((c: { name: string }) => c.name === 'Riyadh');
+    const cairo = cities.body.find((c: { name: string }) => c.name === 'Cairo');
+    const sites = await call('GET', `/sites?cityId=${riyadh.id}&limit=50`);
+    const masmak = sites.body.items.find((s: { name: string }) => s.name === 'Masmak Fortress');
+    const giza = (await call('GET', '/sites?q=Giza')).body.items[0];
+
+    // Photo: signed upload, then attach the key.
+    const bytes = Buffer.from('\xff\xd8\xff\xe0fake-jpeg-bytes', 'latin1');
+    const grant = await call('POST', '/packages/photo-upload', { contentType: 'image/jpeg', sizeBytes: bytes.length }, guide);
+    expect(grant.status).toBe(201);
+    const put = await fetch(rebase(grant.body.uploadUrl), { method: 'PUT', headers: grant.body.headers, body: bytes });
+    expect(put.status).toBeLessThan(300);
+
+    const draft = {
+      cityId: riyadh.id,
+      title: 'Riyadh by Night',
+      titleAr: 'الرياض ليلًا',
+      description: 'Lights of the old city.',
+      durationMinutes: 150,
+      pricingType: 'PER_GROUP',
+      priceMinor: 50000,
+      maxGroupSize: 5,
+      languages: ['ar', 'en'],
+      siteIds: [masmak.id],
+      photoKeys: [grant.body.key],
+    };
+    expect((await call('POST', '/packages', { ...draft, cityId: cairo.id }, guide)).body.error).toBe('CITY_NOT_SERVED');
+    expect((await call('POST', '/packages', { ...draft, siteIds: [giza.id] }, guide)).body.error).toBe('SITE_CITY_MISMATCH');
+    const foreignKey = 'packages/00000000-0000-4000-8000-000000000000/00000000-0000-4000-8000-000000000001.jpg';
+    expect((await call('POST', '/packages', { ...draft, photoKeys: [foreignKey] }, guide)).body.error).toBe('PHOTO_NOT_UPLOADED');
+
+    const created = await call('POST', '/packages', draft, guide);
+    expect(created.status).toBe(201);
+    expect(created.body.currency).toBe('SAR'); // from the city's country
+    expect(created.body.photoUrls).toHaveLength(1);
+    const photo = await fetch(rebase(created.body.photoUrls[0]));
+    expect(photo.headers.get('content-type')).toMatch(/image\/jpeg/);
+
+    // Public profile shows it, in Arabic when asked.
+    const profileId = (await call('GET', '/guides?q=Faisal')).body.items[0].id;
+    const arProfile = await call('GET', `/guides/${profileId}`, undefined, undefined, { 'accept-language': 'ar' });
+    expect(arProfile.body.packages.map((p: { title: string }) => p.title)).toContain('الرياض ليلًا');
+
+    // The editor gets both languages; edits and pausing work.
+    const mine = await call('GET', '/packages/mine', undefined, guide, { 'accept-language': 'ar' });
+    const own = mine.body.find((p: { id: string }) => p.id === created.body.id);
+    expect(own).toMatchObject({ title: 'Riyadh by Night', titleAr: 'الرياض ليلًا' });
+    const edited = await call('PATCH', `/packages/${created.body.id}`, { priceMinor: 55000, photoKeys: [], isActive: false }, guide);
+    expect(edited.body).toMatchObject({ priceMinor: 55000, isActive: false, photoUrls: [] });
+    const after = await call('GET', `/guides/${profileId}`);
+    expect(after.body.packages.map((p: { id: string }) => p.id)).not.toContain(created.body.id);
+    expect((await call('GET', `/packages/${created.body.id}`)).status).toBe(404);
+  });
+
+  it("refuses to edit another guide's tour", async () => {
+    const other = await login('noura@guides.test');
+    const mine = await call('GET', '/packages/mine', undefined, await login('faisal@guides.test'));
+    const res = await call('PATCH', `/packages/${mine.body[0].id}`, { priceMinor: 1 }, other);
+    expect(res.status).toBe(403);
+  });
+});

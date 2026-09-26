@@ -64,7 +64,8 @@ export class LocalUploadsController {
     const stat = await storage.stat(grant.key);
     if (!stat) return res.status(404).json({ statusCode: 404, message: 'File not found' });
     const ext = grant.key.split('.').pop();
-    res.type(ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : 'image/jpeg');
+    const types: Record<string, string> = { pdf: 'application/pdf', png: 'image/png', webp: 'image/webp' };
+    res.type(types[ext ?? ''] ?? 'image/jpeg');
     res.setHeader('cache-control', 'private, no-store');
     createReadStream(storage.pathFor(grant.key)).pipe(res);
   }

@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -15,6 +16,7 @@ import {
   Min,
 } from 'class-validator';
 import { PricingType } from '../common/enums';
+import { PACKAGE_MAX_PHOTOS, PACKAGE_PHOTO_MAX_BYTES, PACKAGE_PHOTO_TYPES } from './package-photos';
 
 export class CreatePackageDto {
   @ApiProperty() @IsUUID()
@@ -42,9 +44,6 @@ export class CreatePackageDto {
   @ApiProperty({ description: 'Minor units, e.g. 45000 = 450.00 SAR' }) @IsInt() @Min(0) @Max(10_000_000)
   priceMinor: number;
 
-  @ApiProperty({ example: 'SAR' }) @Matches(/^[A-Z]{3}$/)
-  currency: string;
-
   @ApiProperty() @IsInt() @Min(1) @Max(50)
   maxGroupSize: number;
 
@@ -53,6 +52,26 @@ export class CreatePackageDto {
 
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(20) @IsUUID('4', { each: true })
   siteIds?: string[];
+
+  /** Keys from POST /packages/photo-upload, in display order (first = cover). */
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PACKAGE_MAX_PHOTOS)
+  @Matches(/^packages\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/, { each: true })
+  photoKeys?: string[];
+}
+
+export class PackagePhotoUploadDto {
+  @ApiProperty({ enum: Object.keys(PACKAGE_PHOTO_TYPES) })
+  @IsIn(Object.keys(PACKAGE_PHOTO_TYPES))
+  contentType: keyof typeof PACKAGE_PHOTO_TYPES;
+
+  @ApiProperty({ description: 'Exact file size in bytes (max 5 MB)' })
+  @IsInt()
+  @Min(1)
+  @Max(PACKAGE_PHOTO_MAX_BYTES)
+  sizeBytes: number;
 }
 
 export class UpdatePackageDto extends PartialType(CreatePackageDto) {
