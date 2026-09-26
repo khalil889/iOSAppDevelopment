@@ -96,7 +96,7 @@ class VerifiedBadge extends StatelessWidget {
           Icon(Icons.verified, size: 14, color: scheme.primary),
           if (!compact) ...[
             const SizedBox(width: 4),
-            Text('Licensed', style: TextStyle(fontSize: 12, color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600)),
+            Text(context.l10n.widgetLicensed, style: TextStyle(fontSize: 12, color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600)),
           ],
         ],
       ),
@@ -139,7 +139,7 @@ class ErrorView extends StatelessWidget {
             Text(errorText(context, error), textAlign: TextAlign.center),
             if (onRetry != null) ...[
               const SizedBox(height: 12),
-              OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+              OutlinedButton(onPressed: onRetry, child: Text(context.l10n.retry)),
             ],
           ],
         ),
@@ -172,6 +172,10 @@ class EmptyView extends StatelessWidget {
     );
   }
 }
+
+/// Wraps [s] in a left-to-right isolate so phone numbers, emails and codes
+/// keep their order inside Arabic (RTL) text.
+String bidiLtr(String s) => s.isEmpty ? s : '\u2066$s\u2069';
 
 void showError(BuildContext context, Object e) {
   ScaffoldMessenger.of(context)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
 import '../../services/repository.dart';
 import '../../widgets/common.dart';
 import 'otp_sheet.dart';
@@ -51,12 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Sign in'),
-          bottom: const TabBar(tabs: [Tab(text: 'Email'), Tab(text: 'Phone')]),
+          title: Text(l10n.authSignInTitle),
+          bottom: TabBar(tabs: [Tab(text: l10n.authTabEmail), Tab(text: l10n.authTabPhone)]),
         ),
         body: TabBarView(
           children: [
@@ -67,23 +69,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  textDirection: TextDirection.ltr,
+                  decoration: InputDecoration(labelText: l10n.authEmailLabel),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _password,
                   obscureText: true,
                   autofillHints: const [AutofillHints.password],
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  textDirection: TextDirection.ltr,
+                  decoration: InputDecoration(labelText: l10n.authPasswordLabel),
                   onSubmitted: (_) => _emailLogin(),
                 ),
                 const SizedBox(height: 20),
-                FilledButton(onPressed: _busy ? null : _emailLogin, child: Text(_busy ? 'Signing in…' : 'Sign in')),
+                FilledButton(onPressed: _busy ? null : _emailLogin, child: Text(_busy ? l10n.authSigningIn : l10n.authSignInButton)),
                 const SizedBox(height: 8),
-                const Text(
-                  'Demo: sara@example.com (tourist) or faisal@guides.test (guide), password Password123!',
+                Text(
+                  l10n.authDemoHint(bidiLtr('sara@example.com'), bidiLtr('faisal@guides.test'), bidiLtr('Password123!')),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
@@ -93,10 +97,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone number', hintText: '+966 50 000 0000'),
+                  textDirection: TextDirection.ltr,
+                  decoration: InputDecoration(
+                    labelText: l10n.authPhoneLabel,
+                    hintText: '+966 50 000 0000',
+                    hintTextDirection: TextDirection.ltr,
+                  ),
                 ),
                 const SizedBox(height: 20),
-                FilledButton(onPressed: _phoneLogin, child: const Text('Send code')),
+                FilledButton(onPressed: _phoneLogin, child: Text(l10n.authSendCode)),
               ],
             ),
           ],
@@ -107,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
               final ok = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
               if (ok == true && context.mounted) Navigator.pop(context, true);
             },
-            child: const Text("New here? Create an account"),
+            child: Text(l10n.authCreateAccountPrompt),
           ),
         ),
       ),

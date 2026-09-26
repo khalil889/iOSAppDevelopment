@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
 import '../../models/models.dart';
 import '../../services/repository.dart';
 import '../../widgets/common.dart';
@@ -56,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         builder: (_) => _VerifyPrompt(phone: _normalizedPhone, devCode: res.devCode),
       );
       if (mounted) {
-        if (verified != true) showMessage(context, 'You can verify your phone later from Account.');
+        if (verified != true) showMessage(context, context.l10n.authVerifyLater);
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -68,60 +69,65 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      appBar: AppBar(title: Text(l10n.authCreateAccount)),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
             SegmentedButton<UserRole>(
-              segments: const [
-                ButtonSegment(value: UserRole.tourist, label: Text("I'm travelling"), icon: Icon(Icons.luggage)),
-                ButtonSegment(value: UserRole.guide, label: Text("I'm a guide"), icon: Icon(Icons.badge)),
+              segments: [
+                ButtonSegment(value: UserRole.tourist, label: Text(l10n.authRoleTourist), icon: const Icon(Icons.luggage)),
+                ButtonSegment(value: UserRole.guide, label: Text(l10n.authRoleGuide), icon: const Icon(Icons.badge)),
               ],
               selected: {_role},
               onSelectionChanged: (s) => setState(() => _role = s.first),
             ),
             if (_role == UserRole.guide)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'After sign-up, submit your tourism license from the dashboard. You can receive bookings once an admin verifies it.',
-                  style: TextStyle(fontSize: 12),
-                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(l10n.authGuideLicenseNote, style: const TextStyle(fontSize: 12)),
               ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Full name'),
-              validator: (v) => (v ?? '').trim().length < 2 ? 'Enter your name' : null,
+              decoration: InputDecoration(labelText: l10n.authFullNameLabel),
+              validator: (v) => (v ?? '').trim().length < 2 ? l10n.authNameRequired : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
-              validator: (v) => (v ?? '').contains('@') ? null : 'Enter a valid email',
+              textDirection: TextDirection.ltr,
+              decoration: InputDecoration(labelText: l10n.authEmailLabel),
+              validator: (v) => (v ?? '').contains('@') ? null : l10n.authEmailInvalid,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _phone,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Mobile number', hintText: '+966500000000'),
+              textDirection: TextDirection.ltr,
+              decoration: InputDecoration(
+                labelText: l10n.authMobileLabel,
+                hintText: '+966500000000',
+                hintTextDirection: TextDirection.ltr,
+              ),
               validator: (_) => RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(_normalizedPhone)
                   ? null
-                  : 'Use international format, e.g. +966500000000',
+                  : l10n.authPhoneFormatError(bidiLtr('+966500000000')),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _password,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password (min 8 characters)'),
-              validator: (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null,
+              textDirection: TextDirection.ltr,
+              decoration: InputDecoration(labelText: l10n.authPasswordMinLabel),
+              validator: (v) => (v ?? '').length < 8 ? l10n.authPasswordTooShort : null,
             ),
             const SizedBox(height: 24),
-            FilledButton(onPressed: _busy ? null : _submit, child: Text(_busy ? 'Creating…' : 'Create account')),
+            FilledButton(onPressed: _busy ? null : _submit, child: Text(_busy ? l10n.authCreating : l10n.authCreateAccount)),
           ],
         ),
       ),
@@ -158,7 +164,7 @@ class _VerifyPromptState extends State<_VerifyPrompt> {
       await context.read<Session>().signIn(res);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = errorText(context, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -166,34 +172,36 @@ class _VerifyPromptState extends State<_VerifyPrompt> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Padding(
-      padding: EdgeInsets.fromLTRB(24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsetsDirectional.fromSTEB(24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Verify your phone', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.authVerifyPhoneTitle, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text('Enter the code sent to ${widget.phone}. A verified phone is required to book.'),
+          Text(l10n.authVerifyPhoneBody(bidiLtr(widget.phone))),
           const SizedBox(height: 16),
           TextField(
             controller: _code,
             keyboardType: TextInputType.number,
             maxLength: 6,
             textAlign: TextAlign.center,
+            textDirection: TextDirection.ltr,
             style: const TextStyle(fontSize: 24, letterSpacing: 8),
             decoration: InputDecoration(counterText: '', errorText: _error),
           ),
           const SizedBox(height: 12),
-          FilledButton(onPressed: _busy ? null : _verify, child: const Text('Verify')),
+          FilledButton(onPressed: _busy ? null : _verify, child: Text(l10n.authVerify)),
           TextButton(
             onPressed: () async {
               final ok = await showOtpSheet(context, phone: widget.phone, login: false);
               if (ok && context.mounted) Navigator.pop(context, true);
             },
-            child: const Text('Resend code'),
+            child: Text(l10n.authResendCode),
           ),
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Later')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(l10n.authLater)),
         ],
       ),
     );

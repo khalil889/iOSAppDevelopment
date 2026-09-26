@@ -17,57 +17,58 @@ class AccountScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.watch<Session>();
     final user = session.user;
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+      appBar: AppBar(title: Text(l10n.tabAccount)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (user == null)
             EmptyView(
               icon: Icons.person_outline,
-              message: 'Sign in to book licensed guides, or create a guide account to offer tours.',
-              action: FilledButton(onPressed: () => requireSignIn(context), child: const Text('Sign in or register')),
+              message: l10n.accountSignedOutMessage,
+              action: FilledButton(onPressed: () => requireSignIn(context), child: Text(l10n.accountSignInOrRegister)),
             )
           else ...[
             ListTile(
               leading: Avatar(name: user.fullName),
               title: Text(user.fullName),
-              subtitle: Text(user.email ?? ''),
-              trailing: StatusChip(user.role == UserRole.guide ? 'Guide mode' : 'Tourist mode'),
+              subtitle: Text(bidiLtr(user.email ?? '')),
+              trailing: StatusChip(user.role == UserRole.guide ? l10n.accountGuideMode : l10n.accountTouristMode),
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.phone_iphone),
-              title: Text(user.phone ?? 'No phone'),
-              subtitle: Text(user.phoneVerified ? 'Verified' : 'Not verified — required to book'),
+              title: Text(user.phone == null ? l10n.accountNoPhone : bidiLtr(user.phone!)),
+              subtitle: Text(user.phoneVerified ? l10n.accountPhoneVerified : l10n.accountPhoneNotVerified),
               trailing: user.phoneVerified || user.phone == null
                   ? const Icon(Icons.verified, color: Colors.green)
                   : TextButton(
                       onPressed: () async {
                         final ok = await showOtpSheet(context, phone: user.phone!, login: false);
-                        if (ok && context.mounted) showMessage(context, 'Phone verified');
+                        if (ok && context.mounted) showMessage(context, context.l10n.accountPhoneVerifiedToast);
                       },
-                      child: const Text('Verify'),
+                      child: Text(l10n.accountVerify),
                     ),
             ),
             ListTile(
               leading: const Icon(Icons.logout),
-              title: const Text('Sign out'),
+              title: Text(l10n.accountSignOut),
               onTap: () => context.read<Session>().signOut(),
             ),
             ListTile(
               leading: const Icon(Icons.devices_other),
-              title: const Text('Sign out of all devices'),
-              subtitle: const Text('Use this if you lost a phone'),
+              title: Text(l10n.accountSignOutAll),
+              subtitle: Text(l10n.accountSignOutAllHint),
               onTap: () async {
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Sign out everywhere?'),
-                    content: const Text('You will need to sign in again on every device.'),
+                    title: Text(l10n.accountSignOutAllTitle),
+                    content: Text(l10n.accountSignOutAllBody),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign out')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.accountSignOut)),
                     ],
                   ),
                 );
@@ -84,7 +85,7 @@ class AccountScreen extends StatelessWidget {
           const Divider(),
           const _LanguageTile(),
           const SizedBox(height: 32),
-          Text('API: ${AppConfig.apiUrl}', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
+          Text(l10n.accountApiUrl(bidiLtr(AppConfig.apiUrl)), textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );

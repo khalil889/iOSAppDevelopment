@@ -55,6 +55,8 @@ class LocaleController extends ChangeNotifier {
   Future<void> Function(String languageCode)? onChanged;
 
   Future<void> restore() async {
+    // Arabic dates with Western digits (as used across Saudi apps and receipts).
+    DateFormat.useNativeDigitsByDefaultFor('ar', false);
     try {
       final code = await store.read();
       if (code != null) override = Locale(code);

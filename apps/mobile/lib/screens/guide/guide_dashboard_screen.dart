@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/format.dart';
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
 import '../../models/models.dart';
 import '../../services/repository.dart';
 import '../../widgets/common.dart';
@@ -30,8 +31,11 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
     final user = context.watch<Session>().user;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hi ${user?.firstName ?? ''}'),
-        actions: [IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)), const NotificationBell()],
+        title: Text(context.l10n.dashboardGreeting(user?.firstName ?? '')),
+        actions: [
+          IconButton(onPressed: _reload, tooltip: context.l10n.dashboardRefresh, icon: const Icon(Icons.refresh)),
+          const NotificationBell(),
+        ],
       ),
       body: FutureBuilder<GuideDashboard>(
         future: _data,
@@ -46,17 +50,23 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
 
   Widget _body(GuideDashboard d) {
     final t = Theme.of(context).textTheme;
+    final l10n = context.l10n;
+    final completed = d.stats['COMPLETED'] ?? 0;
+    final upcoming = (d.stats['CONFIRMED'] ?? 0) + (d.stats['IN_PROGRESS'] ?? 0);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _verificationCard(d),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: _stat('Rating', d.ratingCount == 0 ? '—' : d.ratingAvg.toStringAsFixed(1), Icons.star_rounded, '${d.ratingCount} reviews')),
+          Expanded(
+            child: _stat(l10n.dashboardRating, d.ratingCount == 0 ? '—' : d.ratingAvg.toStringAsFixed(1), Icons.star_rounded,
+                l10n.dashboardReviews(d.ratingCount)),
+          ),
           const SizedBox(width: 8),
-          Expanded(child: _stat('Completed', '${d.stats['COMPLETED'] ?? 0}', Icons.flag_outlined, 'tours')),
+          Expanded(child: _stat(l10n.dashboardCompleted, '$completed', Icons.flag_outlined, l10n.dashboardToursUnit(completed))),
           const SizedBox(width: 8),
-          Expanded(child: _stat('Upcoming', '${(d.stats['CONFIRMED'] ?? 0) + (d.stats['IN_PROGRESS'] ?? 0)}', Icons.event, 'booked')),
+          Expanded(child: _stat(l10n.dashboardUpcoming, '$upcoming', Icons.event, l10n.dashboardBooked)),
         ]),
         const SizedBox(height: 12),
         for (final e in d.earnings)
@@ -66,18 +76,18 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
               child: Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Paid out', style: t.labelMedium),
+                    Text(l10n.dashboardPaidOut, style: t.labelMedium),
                     Text(formatMoney(e.releasedMinor, e.currency), style: t.titleLarge),
                   ]),
                 ),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('In escrow', style: t.labelMedium),
+                    Text(l10n.dashboardInEscrow, style: t.labelMedium),
                     Text(formatMoney(e.heldMinor, e.currency), style: t.titleLarge),
                   ]),
                 ),
                 Tooltip(
-                  message: 'Escrow is released 7 days after a completed tour if there is no dispute.',
+                  message: l10n.dashboardEscrowInfo,
                   child: Icon(Icons.info_outline, color: Theme.of(context).hintColor),
                 ),
               ]),
@@ -86,18 +96,18 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.schedule),
-            title: const Text('Availability'),
-            subtitle: const Text('Weekly hours and days off'),
+            title: Text(l10n.availabilityTitle),
+            subtitle: Text(l10n.dashboardAvailabilitySubtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AvailabilityScreen())),
           ),
         ),
         const SizedBox(height: 16),
-        Text('Upcoming tours', style: t.titleLarge),
+        Text(l10n.dashboardUpcomingTours, style: t.titleLarge),
         if (d.upcoming.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('No upcoming tours.', textAlign: TextAlign.center),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(l10n.dashboardNoUpcomingTours, textAlign: TextAlign.center),
           ),
         for (final b in d.upcoming)
           Card(
@@ -107,9 +117,12 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
                 child: Icon(b.status == BookingStatus.inProgress ? Icons.podcasts : Icons.event, color: b.status == BookingStatus.inProgress ? Colors.white : null),
               ),
               title: Text(b.packageTitle),
-              subtitle: Text('${formatDateTime(b.startAt)}\n${b.touristName} · ${b.groupSize} pax · ${formatMoney(b.guidePayoutMinor, b.currency)} payout'),
+              subtitle: Text(
+                '${formatDateTime(b.startAt)}\n${b.touristName} · ${l10n.dashboardGuests(b.groupSize)} · '
+                '${l10n.dashboardPayout(formatMoney(b.guidePayoutMinor, b.currency))}',
+              ),
               isThreeLine: true,
-              trailing: b.status == BookingStatus.inProgress ? const StatusChip('LIVE', color: Colors.red) : const Icon(Icons.chevron_right),
+              trailing: b.status == BookingStatus.inProgress ? StatusChip(l10n.liveBadge, color: Colors.red) : const Icon(Icons.chevron_right),
               onTap: () async {
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => LiveTourScreen(bookingId: b.id)));
                 _reload();
@@ -122,12 +135,13 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
 
   Widget _verificationCard(GuideDashboard d) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     final (color, icon, title, body) = switch (d.verificationStatus) {
-      'APPROVED' => (Colors.green, Icons.verified, 'Licensed & verified', 'You appear in search and can receive bookings.'),
-      'PENDING' => (Colors.orange, Icons.hourglass_top, 'Verification in progress', 'An admin is reviewing your license. This usually takes 1–2 business days.'),
-      'REJECTED' => (scheme.error, Icons.error_outline, 'Verification rejected', d.rejectionReason ?? 'Please review and resubmit your license.'),
-      'SUSPENDED' => (scheme.error, Icons.block, 'Account suspended', d.rejectionReason ?? 'Contact support.'),
-      _ => (scheme.primary, Icons.badge_outlined, 'Submit your license', 'Add your tourism license to get verified and start receiving bookings.'),
+      'APPROVED' => (Colors.green, Icons.verified, l10n.dashboardVerifiedTitle, l10n.dashboardVerifiedBody),
+      'PENDING' => (Colors.orange, Icons.hourglass_top, l10n.dashboardPendingTitle, l10n.dashboardPendingBody),
+      'REJECTED' => (scheme.error, Icons.error_outline, l10n.dashboardRejectedTitle, d.rejectionReason ?? l10n.dashboardRejectedBody),
+      'SUSPENDED' => (scheme.error, Icons.block, l10n.dashboardSuspendedTitle, d.rejectionReason ?? l10n.dashboardSuspendedBody),
+      _ => (scheme.primary, Icons.badge_outlined, l10n.dashboardDraftTitle, l10n.dashboardDraftBody),
     };
     return Card(
       color: Color.alphaBlend(color.withValues(alpha: 0.10), scheme.surface),
@@ -148,7 +162,7 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
                 final ok = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const LicenseFormScreen()));
                 if (ok == true) _reload();
               },
-              child: Text(d.verificationStatus == 'REJECTED' ? 'Resubmit license' : 'Submit license'),
+              child: Text(d.verificationStatus == 'REJECTED' ? l10n.dashboardResubmitLicense : l10n.dashboardSubmitLicense),
             ),
           ],
         ]),

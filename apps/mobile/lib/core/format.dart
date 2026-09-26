@@ -10,7 +10,9 @@ String formatMoney(int minor, String currency) {
   final exp = currencyExponent(currency);
   final value = minor / _pow10(exp);
   final whole = value == value.roundToDouble();
+  // Western digits in every language, matching card statements and receipts.
   final f = NumberFormat.currency(
+    locale: 'en',
     name: '$currency ',
     symbol: '$currency ',
     decimalDigits: whole ? 0 : exp,

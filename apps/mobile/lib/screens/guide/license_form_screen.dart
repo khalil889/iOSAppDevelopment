@@ -2,9 +2,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/models.dart';
 import '../../services/repository.dart';
 import '../../widgets/common.dart';
@@ -71,7 +72,7 @@ class _LicenseFormScreenState extends State<LicenseFormScreen> {
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
     if (_photoKey == null) {
-      showMessage(context, 'Add a photo of your license first.');
+      showMessage(context, context.l10n.licensePhotoRequired);
       return;
     }
     setState(() => _busy = true);
@@ -83,7 +84,7 @@ class _LicenseFormScreenState extends State<LicenseFormScreen> {
             documentKey: _photoKey,
           );
       if (!mounted) return;
-      showMessage(context, 'Submitted for verification');
+      showMessage(context, context.l10n.licenseSubmitted);
       Navigator.pop(context, true);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -94,35 +95,39 @@ class _LicenseFormScreenState extends State<LicenseFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final locale = Localizations.localeOf(context).toLanguageTag();
     final code = _countries.where((c) => c.id == _countryId).firstOrNull?.code;
     return Scaffold(
-      appBar: AppBar(title: const Text('Tourism license')),
+      appBar: AppBar(title: Text(l10n.licenseTitle)),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const Text('We verify every guide against the issuing authority before they can take bookings.'),
+            Text(l10n.licenseIntro),
             const SizedBox(height: 20),
             DropdownButtonFormField<String>(
               initialValue: _countryId,
-              decoration: const InputDecoration(labelText: 'Issuing country'),
+              decoration: InputDecoration(labelText: l10n.licenseCountryLabel),
               items: [for (final c in _countries) DropdownMenuItem(value: c.id, child: Text(c.name))],
               onChanged: (v) => setState(() => _countryId = v),
-              validator: (v) => v == null ? 'Select a country' : null,
+              validator: (v) => v == null ? l10n.licenseCountryRequired : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _number,
               textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(labelText: 'License number', hintText: code != null ? '$code-123456' : null),
-              validator: (v) => (v ?? '').trim().length < 3 ? 'Enter your license number' : null,
+              // License numbers are Latin alphanumerics; keep them LTR in Arabic too.
+              textDirection: TextDirection.ltr,
+              decoration: InputDecoration(labelText: l10n.licenseNumberLabel, hintText: code != null ? '$code-123456' : null),
+              validator: (v) => (v ?? '').trim().length < 3 ? l10n.licenseNumberRequired : null,
             ),
             const SizedBox(height: 12),
             FormField<DateTime>(
-              validator: (_) => _expires == null ? 'Pick the expiry date' : null,
+              validator: (_) => _expires == null ? l10n.licenseExpiryRequired : null,
               builder: (field) => InputDecorator(
-                decoration: InputDecoration(labelText: 'Expiry date', errorText: field.errorText),
+                decoration: InputDecoration(labelText: l10n.licenseExpiryLabel, errorText: field.errorText),
                 child: InkWell(
                   onTap: () async {
                     final d = await showDatePicker(
@@ -133,12 +138,12 @@ class _LicenseFormScreenState extends State<LicenseFormScreen> {
                     );
                     if (d != null) setState(() => _expires = d);
                   },
-                  child: Text(_expires == null ? 'Select' : DateFormat('d MMM yyyy').format(_expires!)),
+                  child: Text(_expires == null ? l10n.licenseSelect : DateFormat.yMMMd(locale).format(_expires!)),
                 ),
               ),
             ),
             const SizedBox(height: 12),
-            Text('Photo of your license', style: Theme.of(context).textTheme.titleSmall),
+            Text(l10n.licensePhotoTitle, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             if (_photo != null)
               Stack(
@@ -150,7 +155,11 @@ class _LicenseFormScreenState extends State<LicenseFormScreen> {
                   ),
                   if (_uploading) const CircularProgressIndicator(),
                   if (_photoKey != null)
-                    const Positioned(right: 8, top: 8, child: Chip(avatar: Icon(Icons.check_circle, color: Colors.green), label: Text('Uploaded'))),
+                    PositionedDirectional(
+                      end: 8,
+                      top: 8,
+                      child: Chip(avatar: const Icon(Icons.check_circle, color: Colors.green), label: Text(l10n.licenseUploaded)),
+                    ),
                 ],
               ),
             const SizedBox(height: 8),
@@ -159,7 +168,7 @@ class _LicenseFormScreenState extends State<LicenseFormScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _uploading ? null : () => _pickPhoto(ImageSource.camera),
                   icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('Take photo'),
+                  label: Text(l10n.licenseTakePhoto),
                 ),
               ),
               const SizedBox(width: 8),
@@ -167,14 +176,14 @@ class _LicenseFormScreenState extends State<LicenseFormScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _uploading ? null : () => _pickPhoto(ImageSource.gallery),
                   icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Choose'),
+                  label: Text(l10n.licenseChoosePhoto),
                 ),
               ),
             ]),
             const SizedBox(height: 4),
-            const Text('Stored privately; only our verification team can see it.', style: TextStyle(fontSize: 12)),
+            Text(l10n.licensePrivacyNote, style: const TextStyle(fontSize: 12)),
             const SizedBox(height: 24),
-            FilledButton(onPressed: _busy || _uploading ? null : _submit, child: Text(_busy ? 'Submitting…' : 'Submit for verification')),
+            FilledButton(onPressed: _busy || _uploading ? null : _submit, child: Text(_busy ? l10n.licenseSubmitting : l10n.licenseSubmit)),
           ],
         ),
       ),

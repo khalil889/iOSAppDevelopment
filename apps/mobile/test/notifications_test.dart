@@ -135,6 +135,36 @@ void main() {
     expect(calls.where((c) => c == 'GET /me/notifications').length, greaterThan(before));
   });
 
+  testWidgets('inbox renders in Arabic, right-to-left', (tester) async {
+    final r = repo();
+    final push = FakePush();
+    final session = Session(r.api, r, push: push, store: MemoryTokenStore());
+    await session.signIn(AuthResult(accessToken: 'jwt', refreshToken: 'rt', user: AppUser(id: 'u1', fullName: 'Faisal', role: UserRole.guide)));
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        Provider.value(value: r),
+        Provider<PushService>.value(value: push),
+        ChangeNotifierProvider.value(value: session),
+        ChangeNotifierProvider(create: (_) => InboxController(r)),
+      ],
+      child: MaterialApp(
+        locale: const Locale('ar'),
+        localizationsDelegates: localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const InboxScreen(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('الإشعارات'), findsOneWidget);
+    expect(find.text('تحديد الكل كمقروء'), findsOneWidget);
+    expect(find.text('الآن'), findsOneWidget);
+    // Server-provided text is shown as-is (the API translates it).
+    expect(find.text('New booking'), findsOneWidget);
+    expect(Directionality.of(tester.element(find.text('الإشعارات'))), TextDirection.rtl);
+  });
+
   test('sign-out unregisters the device before dropping the token', () async {
     final r = repo();
     final push = FakePush();

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/inbox_controller.dart';
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
 import '../../models/models.dart';
 import '../../services/push_service.dart';
 import '../../services/repository.dart';
@@ -68,7 +69,7 @@ class _PushListenerState extends State<PushListener> {
       content: Text(e.body.isEmpty ? e.title : '${e.title}\n${e.body}'),
       action: e.data['bookingId'] == null
           ? null
-          : SnackBarAction(label: 'Open', onPressed: () => openNotificationTarget(context, e.data)),
+          : SnackBarAction(label: context.l10n.notifOpen, onPressed: () => openNotificationTarget(context, e.data)),
     ));
   }
 
@@ -98,7 +99,7 @@ class NotificationBell extends StatelessWidget {
     if (!context.watch<Session>().isSignedIn) return const SizedBox.shrink();
     final unread = context.watch<InboxController>().unread;
     return IconButton(
-      tooltip: 'Notifications',
+      tooltip: context.l10n.notifTitle,
       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InboxScreen())),
       icon: Badge(
         isLabelVisible: unread > 0,
@@ -134,29 +135,30 @@ class _InboxScreenState extends State<InboxScreen> {
         _ => Icons.event_available,
       };
 
-  static String _ago(DateTime t) {
+  static String _ago(AppLocalizations l10n, DateTime t) {
     final d = DateTime.now().difference(t);
-    if (d.inMinutes < 1) return 'now';
-    if (d.inHours < 1) return '${d.inMinutes}m';
-    if (d.inDays < 1) return '${d.inHours}h';
-    return '${d.inDays}d';
+    if (d.inMinutes < 1) return l10n.notifAgoNow;
+    if (d.inHours < 1) return l10n.notifAgoMinutes(d.inMinutes);
+    if (d.inDays < 1) return l10n.notifAgoHours(d.inHours);
+    return l10n.notifAgoDays(d.inDays);
   }
 
   @override
   Widget build(BuildContext context) {
     final inbox = context.watch<InboxController>();
     final items = inbox.inbox?.items;
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(l10n.notifTitle),
         actions: [
-          if (inbox.unread > 0) TextButton(onPressed: inbox.markAllRead, child: const Text('Mark all read')),
+          if (inbox.unread > 0) TextButton(onPressed: inbox.markAllRead, child: Text(l10n.notifMarkAllRead)),
         ],
       ),
       body: items == null
           ? const Center(child: CircularProgressIndicator())
           : items.isEmpty
-              ? const Center(child: Text('No notifications yet.'))
+              ? Center(child: Text(l10n.notifEmpty))
               : RefreshIndicator(
                   onRefresh: inbox.refresh,
                   child: ListView.separated(
@@ -172,7 +174,7 @@ class _InboxScreenState extends State<InboxScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(_ago(n.createdAt), style: Theme.of(context).textTheme.bodySmall),
+                            Text(_ago(l10n, n.createdAt), style: Theme.of(context).textTheme.bodySmall),
                             if (n.unread) ...[
                               const SizedBox(height: 4),
                               CircleAvatar(radius: 4, backgroundColor: Theme.of(context).colorScheme.primary),

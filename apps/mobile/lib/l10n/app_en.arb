@@ -1,5 +1,219 @@
 {
   "@@locale": "en",
+  "accountSignedOutMessage": "Sign in to book licensed guides, or create a guide account to offer tours.",
+  "accountSignInOrRegister": "Sign in or register",
+  "accountGuideMode": "Guide mode",
+  "accountTouristMode": "Tourist mode",
+  "accountNoPhone": "No phone",
+  "accountPhoneVerified": "Verified",
+  "accountPhoneNotVerified": "Not verified — required to book",
+  "accountVerify": "Verify",
+  "accountPhoneVerifiedToast": "Phone verified",
+  "accountSignOut": "Sign out",
+  "accountSignOutAll": "Sign out of all devices",
+  "accountSignOutAllHint": "Use this if you lost a phone",
+  "accountSignOutAllTitle": "Sign out everywhere?",
+  "accountSignOutAllBody": "You will need to sign in again on every device.",
+  "accountApiUrl": "API: {url}",
+  "@accountApiUrl": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "assistantTitle": "Travel assistant",
+  "assistantNewChat": "New chat",
+  "assistantIntro": "Ask me about places to visit, itineraries or finding a licensed guide.",
+  "assistantStarter1": "Plan 2 days in AlUla",
+  "assistantStarter2": "Find me a guide in Cairo",
+  "assistantStarter3": "What should I see in Riyadh?",
+  "assistantStarter4": "Is it safe to hike in Petra?",
+  "assistantInputHint": "Ask anything…",
+  "assistantSend": "Send",
+  "assistantThinking": "Assistant is typing",
+  "authSignInTitle": "Sign in",
+  "authTabEmail": "Email",
+  "authTabPhone": "Phone",
+  "authEmailLabel": "Email",
+  "authPasswordLabel": "Password",
+  "authSigningIn": "Signing in…",
+  "authSignInButton": "Sign in",
+  "authDemoHint": "Demo: {touristEmail} (tourist) or {guideEmail} (guide), password {password}",
+  "@authDemoHint": {
+    "placeholders": {
+      "touristEmail": {
+        "type": "String"
+      },
+      "guideEmail": {
+        "type": "String"
+      },
+      "password": {
+        "type": "String"
+      }
+    }
+  },
+  "authPhoneLabel": "Phone number",
+  "authSendCode": "Send code",
+  "authCreateAccountPrompt": "New here? Create an account",
+  "authCreateAccount": "Create account",
+  "authRoleTourist": "I'm travelling",
+  "authRoleGuide": "I'm a guide",
+  "authGuideLicenseNote": "After sign-up, submit your tourism license from the dashboard. You can receive bookings once an admin verifies it.",
+  "authFullNameLabel": "Full name",
+  "authNameRequired": "Enter your name",
+  "authEmailInvalid": "Enter a valid email",
+  "authMobileLabel": "Mobile number",
+  "authPhoneFormatError": "Use international format, e.g. {example}",
+  "@authPhoneFormatError": {
+    "placeholders": {
+      "example": {
+        "type": "String"
+      }
+    }
+  },
+  "authPasswordMinLabel": "Password (min 8 characters)",
+  "authPasswordTooShort": "At least 8 characters",
+  "authCreating": "Creating…",
+  "authVerifyLater": "You can verify your phone later from Account.",
+  "authVerifyPhoneTitle": "Verify your phone",
+  "authVerifyPhoneBody": "Enter the code sent to {phone}. A verified phone is required to book.",
+  "@authVerifyPhoneBody": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "authVerify": "Verify",
+  "authResendCode": "Resend code",
+  "authLater": "Later",
+  "authEnterCodeTitle": "Enter the code",
+  "authCodeSentTo": "We sent a 6-digit code to {phone}.",
+  "@authCodeSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "authDevCodePrefilled": "Dev mode: code pre-filled",
+  "authVerifying": "Verifying…",
+  "availabilityTitle": "Availability",
+  "availabilitySaved": "Availability saved. Existing bookings are unchanged.",
+  "availabilityStart": "Start",
+  "availabilityEnd": "End",
+  "availabilityEndBeforeStart": "End time must be after the start time.",
+  "availabilityDiscardTitle": "Discard changes?",
+  "availabilityKeepEditing": "Keep editing",
+  "availabilityDiscard": "Discard",
+  "availabilityWeeklyHours": "Weekly hours",
+  "availabilityNoHours": "No hours set — tourists can book you any day between {start} and {end}.",
+  "@availabilityNoHours": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "availabilityHoursHint": "Local time of each tour's city. Tourists only see start times that fit.",
+  "availabilityTimeOff": "Time off",
+  "availabilityAdd": "Add",
+  "availabilityNoTimeOff": "No days off planned.",
+  "availabilityDateRange": "{start} – {end}",
+  "@availabilityDateRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "availabilityRemove": "Remove",
+  "availabilitySaving": "Saving…",
+  "availabilitySaveChanges": "Save changes",
+  "availabilitySavedState": "Saved",
+  "availabilityDayOff": "Off",
+  "availabilityAddHours": "Add hours",
+  "availabilityCopyToWorkweek": "Copy to Sun–Thu",
+  "bookingCouldNotLoadTimes": "Could not load times",
+  "bookingCouldNotGetPrice": "Could not get a price",
+  "bookingPaymentDescription": "{tour} with {guide}",
+  "@bookingPaymentDescription": {
+    "placeholders": {
+      "tour": {
+        "type": "String"
+      },
+      "guide": {
+        "type": "String"
+      }
+    }
+  },
+  "bookingHeldMessage": "Booking held for 15 minutes — pay from Trips to confirm.",
+  "bookingVerifyingPayment": "We're still verifying your payment — check Trips in a moment.",
+  "bookingSuccessTitle": "You're booked!",
+  "bookingSuccessBody": "{tour} with {guide}\n{dateTime}\n\nYour payment is held securely in escrow and released to the guide only after the tour.",
+  "@bookingSuccessBody": {
+    "placeholders": {
+      "tour": {
+        "type": "String"
+      },
+      "guide": {
+        "type": "String"
+      },
+      "dateTime": {
+        "type": "String"
+      }
+    }
+  },
+  "bookingDone": "Done",
+  "bookingTitle": "Book tour",
+  "bookingWithGuide": "with {guide} · {duration}",
+  "@bookingWithGuide": {
+    "placeholders": {
+      "guide": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "bookingDate": "Date",
+  "bookingStartTime": "Start time",
+  "bookingLocalTimeZone": "local time · {timeZone}",
+  "@bookingLocalTimeZone": {
+    "placeholders": {
+      "timeZone": {
+        "type": "String"
+      }
+    }
+  },
+  "bookingNoSlots": "No free times on this day. Try another date.",
+  "bookingTravellers": "Travellers",
+  "bookingMaxGroup": "Max {count}",
+  "@bookingMaxGroup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookingNotesLabel": "Notes for your guide (optional)",
+  "bookingPickTimeForPrice": "Pick a start time to see the price.",
+  "bookingGettingPrice": "Getting price…",
+  "bookingPrivateGroup": "Private group tour",
+  "bookingTimeLabel": "Time",
+  "bookingLocalFallback": "local",
+  "bookingTotal": "Total",
+  "bookingPolicy": "Free cancellation up to 48 hours before. 50% refund between 24 and 48 hours. Your payment is held in escrow until the tour is completed.",
+  "bookingProcessing": "Processing…",
+  "bookingConfirmPay": "Confirm & pay",
   "appTitle": "TourGuide",
   "tabExplore": "Explore",
   "tabTrips": "Trips",
@@ -55,5 +269,391 @@
   "escrowPartiallyRefunded": "Partially refunded",
   "escrowDisputed": "Disputed",
   "escrowFailed": "Failed",
-  "liveBadge": "LIVE"
+  "liveBadge": "LIVE",
+  "dashboardGreeting": "Hi {name}",
+  "@dashboardGreeting": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardRefresh": "Refresh",
+  "dashboardRating": "Rating",
+  "dashboardReviews": "{count, plural, =0{No reviews} =1{1 review} other{{count} reviews}}",
+  "@dashboardReviews": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashboardCompleted": "Completed",
+  "dashboardToursUnit": "{count, plural, =1{tour} other{tours}}",
+  "@dashboardToursUnit": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashboardUpcoming": "Upcoming",
+  "dashboardBooked": "booked",
+  "dashboardPaidOut": "Paid out",
+  "dashboardInEscrow": "In escrow",
+  "dashboardEscrowInfo": "Escrow is released 7 days after a completed tour if there is no dispute.",
+  "dashboardAvailabilitySubtitle": "Weekly hours and days off",
+  "dashboardUpcomingTours": "Upcoming tours",
+  "dashboardNoUpcomingTours": "No upcoming tours.",
+  "dashboardGuests": "{count, plural, =1{1 guest} other{{count} guests}}",
+  "@dashboardGuests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashboardPayout": "{amount} payout",
+  "@dashboardPayout": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardVerifiedTitle": "Licensed & verified",
+  "dashboardVerifiedBody": "You appear in search and can receive bookings.",
+  "dashboardPendingTitle": "Verification in progress",
+  "dashboardPendingBody": "An admin is reviewing your license. This usually takes 1–2 business days.",
+  "dashboardRejectedTitle": "Verification rejected",
+  "dashboardRejectedBody": "Please review and resubmit your license.",
+  "dashboardSuspendedTitle": "Account suspended",
+  "dashboardSuspendedBody": "Contact support.",
+  "dashboardDraftTitle": "Submit your license",
+  "dashboardDraftBody": "Add your tourism license to get verified and start receiving bookings.",
+  "dashboardResubmitLicense": "Resubmit license",
+  "dashboardSubmitLicense": "Submit license",
+  "exploreTitle": "Explore",
+  "exploreGreeting": "Hi {name} 👋",
+  "@exploreGreeting": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreSearchHint": "Search sites, guides, cities",
+  "exploreTabPlaces": "Places",
+  "exploreTabGuides": "Guides",
+  "exploreAnyCity": "Any city",
+  "exploreCityFallback": "City",
+  "exploreCityWithCountry": "{city}, {country}",
+  "@exploreCityWithCountry": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "country": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreAnyLanguage": "Any language",
+  "exploreLangEn": "English",
+  "exploreLangAr": "Arabic",
+  "exploreLangFr": "French",
+  "exploreLangDe": "German",
+  "exploreLangEs": "Spanish",
+  "exploreLangIt": "Italian",
+  "exploreLangUr": "Urdu",
+  "exploreMinRating": "{rating}★+",
+  "@exploreMinRating": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreSortTopRated": "Top rated",
+  "exploreSortLowestPrice": "Lowest price",
+  "exploreSortMostExperienced": "Most experienced",
+  "exploreNoPlaces": "No places match your filters.",
+  "exploreNoGuides": "No licensed guides match your filters.",
+  "guideProfileTouristOnly": "Switch to a tourist account to book tours.",
+  "guideProfileLicense": "License",
+  "guideProfileLanguages": "Languages",
+  "guideProfileExperience": "Experience",
+  "guideProfileYears": "{count, plural, =1{1 year} other{{count} years}}",
+  "@guideProfileYears": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guideProfileCities": "Cities",
+  "guideProfileListSeparator": ", ",
+  "guideProfileTours": "Tours",
+  "guideProfileNoTours": "No tours available right now.",
+  "guideProfileReviews": "Reviews",
+  "guideProfileNoReviews": "No reviews yet.",
+  "guideProfileUpTo": "Up to {count}",
+  "@guideProfileUpTo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "guideProfileVisits": "Visits: {sites}",
+  "@guideProfileVisits": {
+    "placeholders": {
+      "sites": {
+        "type": "String"
+      }
+    }
+  },
+  "guideProfilePerPerson": " / person",
+  "guideProfilePerGroup": " / group",
+  "guideProfileBook": "Book",
+  "licenseTitle": "Tourism license",
+  "licenseIntro": "We verify every guide against the issuing authority before they can take bookings.",
+  "licenseCountryLabel": "Issuing country",
+  "licenseCountryRequired": "Select a country",
+  "licenseNumberLabel": "License number",
+  "licenseNumberRequired": "Enter your license number",
+  "licenseExpiryLabel": "Expiry date",
+  "licenseExpiryRequired": "Pick the expiry date",
+  "licenseSelect": "Select",
+  "licensePhotoTitle": "Photo of your license",
+  "licenseUploaded": "Uploaded",
+  "licenseTakePhoto": "Take photo",
+  "licenseChoosePhoto": "Choose",
+  "licensePrivacyNote": "Stored privately; only our verification team can see it.",
+  "licenseSubmitting": "Submitting…",
+  "licenseSubmit": "Submit for verification",
+  "licensePhotoRequired": "Add a photo of your license first.",
+  "licenseSubmitted": "Submitted for verification",
+  "liveTitleLive": "Live tour",
+  "liveTitleDetails": "Tour details",
+  "liveTourFallback": "Tour",
+  "liveTravellers": "{count, plural, =1{1 traveller} other{{count} travellers}}",
+  "@liveTravellers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "liveScheduleLine": "{start} – {end} · {travellers}",
+  "@liveScheduleLine": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "travellers": {
+        "type": "String"
+      }
+    }
+  },
+  "liveYourTraveller": "Your traveller · {phone}",
+  "@liveYourTraveller": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "liveYourGuide": "Your licensed guide · {phone}",
+  "@liveYourGuide": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "liveStops": "Stops",
+  "liveNotes": "Notes: {notes}",
+  "@liveNotes": {
+    "placeholders": {
+      "notes": {
+        "type": "String"
+      }
+    }
+  },
+  "liveStartTour": "Start tour",
+  "liveTourStarted": "Tour started",
+  "liveCompleteTour": "Complete tour",
+  "liveTourCompleted": "Tour completed — payout scheduled",
+  "liveSosHint": "Press and hold for 1 second to alert our 24/7 safety team.",
+  "livePaymentStatus": "Payment: {status}",
+  "@livePaymentStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSosButton": "SOS",
+  "liveSosSemantics": "SOS emergency alert. Press and hold.",
+  "liveSosDialogTitle": "Send SOS alert?",
+  "liveSosDialogBody": "We will share your booking and location with our safety team.",
+  "liveSosMessageLabel": "What's happening? (optional)",
+  "liveSosSend": "Send SOS",
+  "liveSosSentTitle": "Help is on the way",
+  "liveSosSentBody": "Our safety team has been alerted with your booking details and will contact you right away.\n\nIf you are in immediate danger, call local emergency services.",
+  "notifTitle": "Notifications",
+  "notifOpen": "Open",
+  "notifMarkAllRead": "Mark all read",
+  "notifEmpty": "No notifications yet.",
+  "notifAgoNow": "now",
+  "notifAgoMinutes": "{count}m",
+  "@notifAgoMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifAgoHours": "{count}h",
+  "@notifAgoHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifAgoDays": "{count}d",
+  "@notifAgoDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paymentPayAmount": "Pay {amount}",
+  "@paymentPayAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentEscrowNote": "Held securely in escrow and released to your guide only after the tour.",
+  "paymentFailedTryAnother": "Payment failed. Try another card.",
+  "paymentNotCompleted": "Payment could not be completed.",
+  "paymentTestModeNote": "Test mode — no real charge. Funds are held in escrow until your tour is completed.",
+  "paymentTestCardSucceeds": "Test card — succeeds",
+  "paymentTestCardDeclined": "Test card — declined",
+  "reviewRatingPoor": "Poor",
+  "reviewRatingFair": "Fair",
+  "reviewRatingGood": "Good",
+  "reviewRatingGreat": "Great",
+  "reviewRatingOutstanding": "Outstanding",
+  "reviewThanks": "Thanks for your review!",
+  "reviewTitle": "Review your tour",
+  "reviewPrompt": "How was {tour} with {guide}?",
+  "@reviewPrompt": {
+    "placeholders": {
+      "tour": {
+        "type": "String"
+      },
+      "guide": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewYourTour": "your tour",
+  "reviewYourGuide": "your guide",
+  "reviewCommentLabel": "Tell other travellers about it (optional)",
+  "reviewSubmitting": "Submitting…",
+  "reviewSubmit": "Submit review",
+  "siteGuidesCityWithCountry": "{city}, {country}",
+  "@siteGuidesCityWithCountry": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "country": {
+        "type": "String"
+      }
+    }
+  },
+  "siteGuidesLicenseRequired": "Licensed guide required",
+  "siteGuidesLicenseRequiredBody": "Every guide below holds a verified tourism license.",
+  "siteGuidesHeading": "Guides for this place",
+  "siteGuidesEmpty": "No guides cover this place yet.",
+  "tripsTitle": "My trips",
+  "tripsRefresh": "Refresh",
+  "tripsSignInPrompt": "Sign in to see your bookings.",
+  "tripsSignIn": "Sign in",
+  "tripsEmpty": "No trips yet. Find a licensed guide in Explore.",
+  "tripsSectionLive": "Live now",
+  "tripsSectionUpcoming": "Upcoming",
+  "tripsSectionPast": "Past",
+  "tripsTourFallback": "Tour",
+  "tripsTravellers": "{count, plural, =1{1 traveller} other{{count} travellers}}",
+  "@tripsTravellers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tripsScheduleLine": "{date} · {travellers}",
+  "@tripsScheduleLine": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "travellers": {
+        "type": "String"
+      }
+    }
+  },
+  "tripsGuideLine": "Guide: {name} · {amount}",
+  "@tripsGuideLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "tripsOpenLiveTour": "Open live tour",
+  "tripsDetailsSafety": "Details & safety",
+  "tripsPaymentDescription": "Tour booking",
+  "tripsPayNow": "Pay now",
+  "tripsLeaveReview": "Leave a review",
+  "tripsRefundNoPayment": "No payment has been taken.",
+  "tripsRefundFull": "You will get a full refund.",
+  "tripsRefundHalf": "You will get a 50% refund.",
+  "tripsRefundNone": "Cancelling within 24 hours is not refundable.",
+  "tripsCancelTitle": "Cancel booking?",
+  "tripsKeep": "Keep",
+  "tripsCancelConfirm": "Cancel booking",
+  "tripsCancelled": "Booking cancelled. Refund: {percent}%",
+  "@tripsCancelled": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetLicensed": "Licensed",
+  "widgetFromPrice": "from",
+  "widgetDistanceKm": "{distance} km",
+  "@widgetDistanceKm": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "widgetLicensedGuideRequired": "A licensed guide is required here"
 }

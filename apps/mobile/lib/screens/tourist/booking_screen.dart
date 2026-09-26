@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:provider/provider.dart';
 
 import '../../core/api_client.dart';
 import '../../core/format.dart';
+import '../../l10n/l10n.dart';
 import '../../models/models.dart';
 import '../../services/payment_sheet.dart';
 import '../../services/repository.dart';
@@ -56,7 +57,7 @@ class _BookingScreenState extends State<BookingScreen> {
       final s = await context.read<Repository>().slots(pkg.id, _dateKey);
       if (mounted) setState(() => _slots = s);
     } catch (e) {
-      if (mounted) setState(() => _slotsError = e is ApiException ? e.message : 'Could not load times');
+      if (mounted) setState(() => _slotsError = e is ApiException ? errorText(context, e) : context.l10n.bookingCouldNotLoadTimes);
     }
   }
 
@@ -81,9 +82,9 @@ class _BookingScreenState extends State<BookingScreen> {
         final q = await context.read<Repository>().quote(pkg.id, slot.startAt, _group);
         if (mounted) setState(() => _setQuote(q, null));
       } on ApiException catch (e) {
-        if (mounted) setState(() => _setQuote(null, e.message));
+        if (mounted) setState(() => _setQuote(null, errorText(context, e)));
       } catch (e) {
-        if (mounted) setState(() => _setQuote(null, 'Could not get a price'));
+        if (mounted) setState(() => _setQuote(null, context.l10n.bookingCouldNotGetPrice));
       }
     });
   }
@@ -101,6 +102,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _confirm() async {
     final repo = context.read<Repository>();
     final sheet = context.read<PaymentSheet>();
+    final l10n = context.l10n;
     setState(() => _busy = true);
     try {
       final booking = await repo.createBooking(pkg.id, _slot!.startAt, _group, notes: _notes.text.trim());
@@ -111,17 +113,17 @@ class _BookingScreenState extends State<BookingScreen> {
           bookingId: booking.id,
           amountMinor: booking.totalMinor,
           currency: booking.currency,
-          description: '${pkg.title} with ${widget.guide.name}',
+          description: l10n.bookingPaymentDescription(pkg.title, widget.guide.name),
         ),
       );
       if (token == null) {
-        if (mounted) showMessage(context, 'Booking held for 15 minutes — pay from Trips to confirm.');
+        if (mounted) showMessage(context, l10n.bookingHeldMessage);
         return;
       }
       final paid = await repo.pay(booking.id, token);
       if (!mounted) return;
       if (paid.status == BookingStatus.pendingPayment) {
-        showMessage(context, "We're still verifying your payment — check Trips in a moment.");
+        showMessage(context, l10n.bookingVerifyingPayment);
         Navigator.of(context).popUntil((r) => r.isFirst);
         return;
       }
@@ -129,13 +131,12 @@ class _BookingScreenState extends State<BookingScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           icon: const Icon(Icons.check_circle, size: 48, color: Colors.green),
-          title: const Text("You're booked!"),
+          title: Text(l10n.bookingSuccessTitle),
           content: Text(
-            '${pkg.title} with ${widget.guide.name}\n${formatDateTime(paid.startAt)}\n\n'
-            'Your payment is held securely in escrow and released to the guide only after the tour.',
+            l10n.bookingSuccessBody(pkg.title, widget.guide.name, formatDateTime(paid.startAt)),
             textAlign: TextAlign.center,
           ),
-          actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done'))],
+          actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.bookingDone))],
         ),
       );
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
@@ -149,8 +150,9 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Book tour')),
+      appBar: AppBar(title: Text(l10n.bookingTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -158,12 +160,12 @@ class _BookingScreenState extends State<BookingScreen> {
             contentPadding: EdgeInsets.zero,
             leading: Avatar(name: widget.guide.name, url: widget.guide.avatarUrl),
             title: Text(pkg.title, style: t.titleMedium),
-            subtitle: Text('with ${widget.guide.name} · ${formatDuration(pkg.durationMinutes)}'),
+            subtitle: Text(l10n.bookingWithGuide(widget.guide.name, formatDuration(pkg.durationMinutes))),
           ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.calendar_today),
-            title: const Text('Date'),
+            title: Text(l10n.bookingDate),
             trailing: Text(formatDate(_date), style: t.titleSmall),
             onTap: () async {
               final d = await showDatePicker(
@@ -179,14 +181,14 @@ class _BookingScreenState extends State<BookingScreen> {
             },
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Text('Start time', style: t.titleSmall),
+                  Text(l10n.bookingStartTime, style: t.titleSmall),
                   const SizedBox(width: 8),
-                  if (_slots != null) Text('local time · ${_slots!.timeZone}', style: t.bodySmall),
+                  if (_slots != null) Flexible(child: Text(l10n.bookingLocalTimeZone(_slots!.timeZone), style: t.bodySmall)),
                 ]),
                 const SizedBox(height: 8),
                 if (_slotsError != null)
@@ -194,7 +196,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 else if (_slots == null)
                   const LinearProgressIndicator()
                 else if (_slots!.slots.isEmpty)
-                  const Text('No free times on this day. Try another date.')
+                  Text(l10n.bookingNoSlots)
                 else
                   Wrap(
                     spacing: 8,
@@ -202,7 +204,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     children: [
                       for (final s in _slots!.slots)
                         ChoiceChip(
-                          label: Text(s.localTime),
+                          label: Text(s.localTime, textDirection: TextDirection.ltr),
                           selected: _slot?.startAt == s.startAt,
                           onSelected: (_) => _pickSlot(s),
                         ),
@@ -213,8 +215,8 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.group_outlined),
-            title: const Text('Travellers'),
-            subtitle: Text('Max ${pkg.maxGroupSize}'),
+            title: Text(l10n.bookingTravellers),
+            subtitle: Text(l10n.bookingMaxGroup(pkg.maxGroupSize)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton.outlined(
                 onPressed: _group > 1 ? () => _setGroup(_group - 1) : null,
@@ -231,7 +233,7 @@ class _BookingScreenState extends State<BookingScreen> {
           TextField(
             controller: _notes,
             maxLines: 2,
-            decoration: const InputDecoration(labelText: 'Notes for your guide (optional)'),
+            decoration: InputDecoration(labelText: l10n.bookingNotesLabel),
           ),
           const SizedBox(height: 20),
           Card(
@@ -244,26 +246,23 @@ class _BookingScreenState extends State<BookingScreen> {
                       Expanded(child: Text(_quoteError!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
                     ])
                   : _quote == null
-                      ? Text(_slot == null ? 'Pick a start time to see the price.' : 'Getting price…')
+                      ? Text(_slot == null ? l10n.bookingPickTimeForPrice : l10n.bookingGettingPrice)
                       : Column(children: [
                           _line(
-                            pkg.perPerson
-                                ? '${formatMoney(pkg.priceMinor, pkg.currency)} × $_group'
-                                : 'Private group tour',
+                            pkg.perPerson ? '${formatMoney(pkg.priceMinor, pkg.currency)} × $_group' : l10n.bookingPrivateGroup,
                             formatMoney(_quote!.totalMinor, _quote!.currency),
                           ),
-                          _line('Time', '${_slot!.localTime}–${addMinutesToClock(_slot!.localTime, pkg.durationMinutes)} (${_slots?.timeZone ?? 'local'})'),
+                          _line(
+                            l10n.bookingTimeLabel,
+                            '${_slot!.localTime}–${addMinutesToClock(_slot!.localTime, pkg.durationMinutes)} (${_slots?.timeZone ?? l10n.bookingLocalFallback})',
+                          ),
                           const Divider(),
-                          _line('Total', formatMoney(_quote!.totalMinor, _quote!.currency), bold: true),
+                          _line(l10n.bookingTotal, formatMoney(_quote!.totalMinor, _quote!.currency), bold: true),
                         ]),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Free cancellation up to 48 hours before. 50% refund between 24 and 48 hours. '
-            'Your payment is held in escrow until the tour is completed.',
-            style: TextStyle(fontSize: 12),
-          ),
+          Text(l10n.bookingPolicy, style: const TextStyle(fontSize: 12)),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -272,18 +271,24 @@ class _BookingScreenState extends State<BookingScreen> {
           child: FilledButton(
             onPressed: _busy || _quote == null || _slot == null ? null : _confirm,
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-            child: Text(_busy ? 'Processing…' : 'Confirm & pay'),
+            child: Text(_busy ? l10n.bookingProcessing : l10n.bookingConfirmPay),
           ),
         ),
       ),
     );
   }
 
+  /// A label/value row. The value (money, clock times) is always laid out LTR.
   Widget _line(String a, String b, {bool bold = false}) {
     final style = bold ? Theme.of(context).textTheme.titleMedium : null;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(children: [Expanded(child: Text(a, style: style)), Text(b, style: style)]),
+      child: Row(children: [
+        Expanded(
+          child: Text(a, style: style),
+        ),
+        Text(b, style: style, textDirection: TextDirection.ltr),
+      ]),
     );
   }
 }

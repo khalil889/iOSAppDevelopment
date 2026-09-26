@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/format.dart';
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../../models/models.dart';
 import '../../services/repository.dart';
 import '../../widgets/cards.dart';
@@ -14,7 +15,17 @@ import '../shared/push_listener.dart';
 import 'site_guides_screen.dart';
 
 const _categories = ['HERITAGE', 'MUSEUM', 'NATURE', 'RELIGIOUS', 'CITY', 'ADVENTURE', 'FOOD'];
-const _languages = {'en': 'English', 'ar': 'Arabic', 'fr': 'French', 'de': 'German', 'es': 'Spanish', 'it': 'Italian', 'ur': 'Urdu'};
+const _languageCodes = ['en', 'ar', 'fr', 'de', 'es', 'it', 'ur'];
+
+Map<String, String> _languageNames(AppLocalizations l10n) => {
+      'en': l10n.exploreLangEn,
+      'ar': l10n.exploreLangAr,
+      'fr': l10n.exploreLangFr,
+      'de': l10n.exploreLangDe,
+      'es': l10n.exploreLangEs,
+      'it': l10n.exploreLangIt,
+      'ur': l10n.exploreLangUr,
+    };
 
 /// Search sites and licensed guides with filters.
 class ExploreScreen extends StatefulWidget {
@@ -72,6 +83,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final user = context.watch<Session>().user;
+    final l10n = context.l10n;
     return Scaffold(
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
@@ -82,15 +94,15 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
             actions: const [NotificationBell()],
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 62),
-              title: Text(user == null ? 'Explore' : 'Hi ${user.firstName} 👋'),
+              title: Text(user == null ? l10n.exploreTitle : l10n.exploreGreeting(user.firstName)),
             ),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(56),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
                 child: SearchBar(
                   controller: _search,
-                  hintText: 'Search sites, guides, cities',
+                  hintText: l10n.exploreSearchHint,
                   leading: const Icon(Icons.search),
                   onChanged: _onSearchChanged,
                   elevation: const WidgetStatePropertyAll(0),
@@ -99,7 +111,9 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
             ),
           ),
           SliverToBoxAdapter(child: _filters()),
-          SliverPersistentHeader(pinned: true, delegate: _TabHeader(TabBar(controller: _tabs, tabs: const [Tab(text: 'Places'), Tab(text: 'Guides')]))),
+          SliverPersistentHeader(
+              pinned: true,
+              delegate: _TabHeader(TabBar(controller: _tabs, tabs: [Tab(text: l10n.exploreTabPlaces), Tab(text: l10n.exploreTabGuides)]))),
         ],
         body: TabBarView(controller: _tabs, children: [_siteList(), _guideList()]),
       ),
@@ -108,6 +122,13 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
 
   Widget _filters() {
     final guidesTab = _tabs.index == 1;
+    final l10n = context.l10n;
+    final languages = _languageNames(l10n);
+    final sorts = {
+      'rating': l10n.exploreSortTopRated,
+      'price': l10n.exploreSortLowestPrice,
+      'experience': l10n.exploreSortMostExperienced,
+    };
     return SizedBox(
       height: 52,
       child: ListView(
@@ -115,17 +136,23 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         children: [
           _menuChip<String?>(
-            label: _cityId == null ? 'Any city' : _cities.firstWhere((c) => c.id == _cityId, orElse: () => City(id: '', name: 'City')).name,
+            label: _cityId == null
+                ? l10n.exploreAnyCity
+                : _cities.firstWhere((c) => c.id == _cityId, orElse: () => City(id: '', name: l10n.exploreCityFallback)).name,
             selected: _cityId != null,
-            items: {null: 'Any city', for (final c in _cities) c.id: '${c.name}, ${c.country ?? ''}'},
+            items: {
+              null: l10n.exploreAnyCity,
+              for (final c in _cities)
+                c.id: c.country == null || c.country!.isEmpty ? c.name : l10n.exploreCityWithCountry(c.name, c.country!),
+            },
             onSelected: (v) => _cityId = v,
           ),
           if (!guidesTab)
             for (final c in _categories)
               Padding(
-                padding: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsetsDirectional.only(start: 6),
                 child: FilterChip(
-                  label: Text(titleCase(c)),
+                  label: Text(l10n.siteCategory(c)),
                   selected: _category == c,
                   onSelected: (sel) {
                     _category = sel ? c : null;
@@ -135,15 +162,15 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
               ),
           if (guidesTab) ...[
             _menuChip<String?>(
-              label: _language == null ? 'Any language' : _languages[_language]!,
+              label: _language == null ? l10n.exploreAnyLanguage : languages[_language] ?? _language!,
               selected: _language != null,
-              items: {null: 'Any language', ..._languages},
+              items: {null: l10n.exploreAnyLanguage, for (final code in _languageCodes) code: languages[code]!},
               onSelected: (v) => _language = v,
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 6),
+              padding: const EdgeInsetsDirectional.only(start: 6),
               child: FilterChip(
-                label: const Text('4.5★+'),
+                label: Text(l10n.exploreMinRating('4.5')),
                 selected: _minRating != null,
                 onSelected: (sel) {
                   _minRating = sel ? 4.5 : null;
@@ -152,9 +179,9 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
               ),
             ),
             _menuChip<String>(
-              label: {'rating': 'Top rated', 'price': 'Lowest price', 'experience': 'Most experienced'}[_sort]!,
+              label: sorts[_sort]!,
               selected: false,
-              items: const {'rating': 'Top rated', 'price': 'Lowest price', 'experience': 'Most experienced'},
+              items: sorts,
               onSelected: (v) => _sort = v ?? 'rating',
               icon: Icons.sort,
             ),
@@ -172,7 +199,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
     IconData icon = Icons.arrow_drop_down,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsetsDirectional.only(start: 6),
       child: PopupMenuButton<T>(
         itemBuilder: (_) => [for (final e in items.entries) PopupMenuItem(value: e.key, child: Text(e.value))],
         onSelected: (v) {
@@ -194,7 +221,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final sites = snap.data!;
-          if (sites.isEmpty) return const EmptyView(icon: Icons.travel_explore, message: 'No places match your filters.');
+          if (sites.isEmpty) return EmptyView(icon: Icons.travel_explore, message: context.l10n.exploreNoPlaces);
           return RefreshIndicator(
             onRefresh: () async => _reload(),
             child: ListView.builder(
@@ -215,7 +242,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
           if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final guides = snap.data!;
-          if (guides.isEmpty) return const EmptyView(icon: Icons.person_search, message: 'No licensed guides match your filters.');
+          if (guides.isEmpty) return EmptyView(icon: Icons.person_search, message: context.l10n.exploreNoGuides);
           return RefreshIndicator(
             onRefresh: () async => _reload(),
             child: ListView.builder(

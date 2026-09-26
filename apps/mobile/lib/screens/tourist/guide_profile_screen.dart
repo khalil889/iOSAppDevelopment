@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/format.dart';
 import '../../core/session.dart';
+import '../../l10n/l10n.dart';
 import '../../models/models.dart';
 import '../../services/repository.dart';
 import '../../widgets/common.dart';
@@ -25,7 +26,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
   Future<void> _book(GuideProfile p, TourPackage pkg) async {
     if (!await requireSignIn(context) || !mounted) return;
     if (context.read<Session>().isGuide) {
-      showMessage(context, 'Switch to a tourist account to book tours.');
+      showMessage(context, context.l10n.guideProfileTouristOnly);
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => BookingScreen(guide: p.guide, package: pkg)));
@@ -49,8 +50,10 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
   Widget _body(GuideProfile p) {
     final g = p.guide;
     final t = Theme.of(context).textTheme;
+    final l10n = context.l10n;
+    final sep = l10n.guideProfileListSeparator;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 32),
       children: [
         Row(
           children: [
@@ -77,10 +80,11 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                _fact(Icons.badge_outlined, 'License', '${g.licenseNumber ?? '—'} · ${g.licenseCountry ?? ''}'),
-                _fact(Icons.translate, 'Languages', g.languages.map((l) => l.toUpperCase()).join(', ')),
-                _fact(Icons.workspace_premium_outlined, 'Experience', '${g.yearsOfExperience} years'),
-                _fact(Icons.location_city, 'Cities', g.cities.map((c) => c.name).join(', ')),
+                _fact(Icons.badge_outlined, l10n.guideProfileLicense,
+                    [g.licenseNumber ?? '—', if ((g.licenseCountry ?? '').isNotEmpty) g.licenseCountry!].join(' · ')),
+                _fact(Icons.translate, l10n.guideProfileLanguages, g.languages.map((l) => l.toUpperCase()).join(sep)),
+                _fact(Icons.workspace_premium_outlined, l10n.guideProfileExperience, l10n.guideProfileYears(g.yearsOfExperience)),
+                _fact(Icons.location_city, l10n.guideProfileCities, g.cities.map((c) => c.name).join(sep)),
               ],
             ),
           ),
@@ -90,12 +94,12 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
           Text(g.bio, style: t.bodyLarge),
         ],
         const SizedBox(height: 20),
-        Text('Tours', style: t.titleLarge),
-        if (p.packages.isEmpty) const Padding(padding: EdgeInsets.all(8), child: Text('No tours available right now.')),
+        Text(l10n.guideProfileTours, style: t.titleLarge),
+        if (p.packages.isEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(l10n.guideProfileNoTours)),
         for (final pkg in p.packages) _packageCard(p, pkg),
         const SizedBox(height: 20),
-        Text('Reviews', style: t.titleLarge),
-        if (p.reviews.isEmpty) const Padding(padding: EdgeInsets.all(8), child: Text('No reviews yet.')),
+        Text(l10n.guideProfileReviews, style: t.titleLarge),
+        if (p.reviews.isEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(l10n.guideProfileNoReviews)),
         for (final r in p.reviews)
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -103,7 +107,8 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
             title: Row(children: [
               Text(r.author),
               const SizedBox(width: 8),
-              ...List.generate(5, (i) => Icon(i < r.rating ? Icons.star_rounded : Icons.star_outline_rounded, size: 16, color: Colors.amber.shade700)),
+              ...List.generate(
+                  5, (i) => Icon(i < r.rating ? Icons.star_rounded : Icons.star_outline_rounded, size: 16, color: Colors.amber.shade700)),
             ]),
             subtitle: Text(r.comment),
           ),
@@ -123,6 +128,7 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
 
   Widget _packageCard(GuideProfile p, TourPackage pkg) {
     final t = Theme.of(context).textTheme;
+    final l10n = context.l10n;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -135,20 +141,20 @@ class _GuideProfileScreenState extends State<GuideProfileScreen> {
             const SizedBox(height: 8),
             Wrap(spacing: 12, runSpacing: 4, children: [
               _meta(Icons.schedule, formatDuration(pkg.durationMinutes)),
-              _meta(Icons.group_outlined, 'Up to ${pkg.maxGroupSize}'),
+              _meta(Icons.group_outlined, l10n.guideProfileUpTo(pkg.maxGroupSize)),
               if (pkg.cityName != null) _meta(Icons.place_outlined, pkg.cityName!),
             ]),
             if (pkg.sites.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text('Visits: ${pkg.sites.map((s) => s.name).join(', ')}', style: t.bodySmall),
+              Text(l10n.guideProfileVisits(pkg.sites.map((s) => s.name).join(l10n.guideProfileListSeparator)), style: t.bodySmall),
             ],
             const SizedBox(height: 10),
             Row(
               children: [
                 Text(formatMoney(pkg.priceMinor, pkg.currency), style: t.titleLarge),
-                Text(pkg.perPerson ? ' / person' : ' / group', style: t.bodySmall),
+                Text(pkg.perPerson ? l10n.guideProfilePerPerson : l10n.guideProfilePerGroup, style: t.bodySmall),
                 const Spacer(),
-                FilledButton(onPressed: () => _book(p, pkg), child: const Text('Book')),
+                FilledButton(onPressed: () => _book(p, pkg), child: Text(l10n.guideProfileBook)),
               ],
             ),
           ],

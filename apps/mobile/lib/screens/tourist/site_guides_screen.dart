@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/format.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/labels.dart';
 import '../../models/models.dart';
 import '../../services/repository.dart';
 import '../../widgets/cards.dart';
@@ -26,6 +27,8 @@ class _SiteGuidesScreenState extends State<SiteGuidesScreen> {
   Widget build(BuildContext context) {
     final s = widget.site;
     final t = Theme.of(context).textTheme;
+    final l10n = context.l10n;
+    final country = s.city?.country;
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -42,9 +45,13 @@ class _SiteGuidesScreenState extends State<SiteGuidesScreen> {
             sliver: SliverList.list(
               children: [
                 Row(children: [
-                  StatusChip(titleCase(s.category)),
+                  StatusChip(l10n.siteCategory(s.category)),
                   const SizedBox(width: 8),
-                  if (s.city != null) Text('${s.city!.name}${s.city!.country != null ? ', ${s.city!.country}' : ''}'),
+                  if (s.city != null)
+                    Flexible(
+                      child:
+                          Text(country == null || country.isEmpty ? s.city!.name : l10n.siteGuidesCityWithCountry(s.city!.name, country)),
+                    ),
                 ]),
                 const SizedBox(height: 12),
                 Text(s.description, style: t.bodyLarge),
@@ -53,13 +60,13 @@ class _SiteGuidesScreenState extends State<SiteGuidesScreen> {
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.badge_outlined),
-                      title: const Text('Licensed guide required'),
-                      subtitle: const Text('Every guide below holds a verified tourism license.'),
+                      title: Text(l10n.siteGuidesLicenseRequired),
+                      subtitle: Text(l10n.siteGuidesLicenseRequiredBody),
                     ),
                   ),
                 ],
                 const SizedBox(height: 20),
-                Text('Guides for this place', style: t.titleLarge),
+                Text(l10n.siteGuidesHeading, style: t.titleLarge),
               ],
             ),
           ),
@@ -75,8 +82,8 @@ class _SiteGuidesScreenState extends State<SiteGuidesScreen> {
                 return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
               }
               if (snap.data!.isEmpty) {
-                return const SliverToBoxAdapter(
-                  child: EmptyView(icon: Icons.person_search, message: 'No guides cover this place yet.'),
+                return SliverToBoxAdapter(
+                  child: EmptyView(icon: Icons.person_search, message: l10n.siteGuidesEmpty),
                 );
               }
               return SliverPadding(

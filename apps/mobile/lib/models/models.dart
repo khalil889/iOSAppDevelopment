@@ -246,15 +246,6 @@ BookingStatus _bookingStatus(String? s) => switch (s) {
       _ => BookingStatus.pendingPayment,
     };
 
-extension BookingStatusLabel on BookingStatus {
-  String get label => switch (this) {
-        BookingStatus.pendingPayment => 'Awaiting payment',
-        BookingStatus.confirmed => 'Confirmed',
-        BookingStatus.inProgress => 'Live now',
-        BookingStatus.completed => 'Completed',
-        BookingStatus.cancelled => 'Cancelled',
-      };
-}
 
 class Person {
   Person({required this.id, required this.name, this.phone, this.avatarUrl});
