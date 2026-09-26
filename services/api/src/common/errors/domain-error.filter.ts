@@ -1,5 +1,7 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { domainErrorAr } from '../i18n/error-messages.ar';
+import { langFromHeader } from '../i18n/lang';
 import { DomainError, DomainErrorKind } from './domain-error';
 
 const STATUS: Record<DomainErrorKind, number> = {
@@ -12,12 +14,14 @@ const STATUS: Record<DomainErrorKind, number> = {
 @Catch(DomainError)
 export class DomainErrorFilter implements ExceptionFilter {
   catch(error: DomainError, host: ArgumentsHost) {
-    const res = host.switchToHttp().getResponse<Response>();
+    const http = host.switchToHttp();
+    const res = http.getResponse<Response>();
+    const arabic = langFromHeader(http.getRequest<Request>().headers['accept-language']) === 'ar';
     const statusCode = STATUS[error.kind];
     res.status(statusCode).json({
       statusCode,
       error: error.code,
-      message: error.message,
+      message: (arabic && domainErrorAr(error.code, error.message)) || error.message,
     });
   }
 }

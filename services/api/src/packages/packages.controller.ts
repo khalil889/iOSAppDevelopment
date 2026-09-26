@@ -6,6 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
 import { CreatePackageDto, UpdatePackageDto } from './dto';
 import { PackagesService } from './packages.service';
+import { RawContent } from '../common/i18n/localize.interceptor';
 
 @ApiTags('packages')
 @Controller('packages')
@@ -14,6 +15,7 @@ export class PackagesController {
 
   @ApiBearerAuth()
   @Roles(UserRole.GUIDE)
+  @RawContent() // the guide's edit form needs both languages
   @Get('mine')
   mine(@CurrentUser() user: AuthUser) {
     return this.packages.mine(user.id);
@@ -27,6 +29,7 @@ export class PackagesController {
 
   @ApiBearerAuth()
   @Roles(UserRole.GUIDE)
+  @RawContent()
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreatePackageDto) {
     return this.packages.create(user.id, dto);
@@ -34,6 +37,7 @@ export class PackagesController {
 
   @ApiBearerAuth()
   @Roles(UserRole.GUIDE)
+  @RawContent()
   @Patch(':id')
   update(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdatePackageDto) {
     return this.packages.update(user.id, id, dto);

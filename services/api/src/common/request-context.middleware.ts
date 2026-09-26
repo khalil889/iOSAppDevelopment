@@ -1,6 +1,7 @@
 import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
+import { langFromHeader, runWithLang } from './i18n/lang';
 
 /**
  * Tags every request with an id (reusing a sane incoming X-Request-Id from a
@@ -27,6 +28,7 @@ export class RequestContextMiddleware implements NestMiddleware {
       else if (res.statusCode >= 400) this.logger.warn(line);
       else this.logger.log(line);
     });
-    next();
+    // Services (SMS, assistant) read the request language via currentLang().
+    runWithLang(langFromHeader(req.headers['accept-language']), next);
   }
 }

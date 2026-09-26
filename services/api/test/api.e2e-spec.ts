@@ -6,15 +6,20 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import { DomainErrorFilter } from '../src/common/errors/domain-error.filter';
 
 let app: INestApplication;
 let base: string;
 
-async function call<T = any>(method: string, path: string, body?: unknown, token?: string): Promise<{ status: number; body: T }> {
+async function call<T = any>(
+  method: string,
+  path: string,
+  body?: unknown,
+  token?: string,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; body: T }> {
   const res = await fetch(`${base}${path}`, {
     method,
-    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, body: (await res.json()) as T };
@@ -36,7 +41,6 @@ beforeAll(async () => {
   app = moduleRef.createNestApplication();
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
-  app.useGlobalFilters(new DomainErrorFilter());
   await app.listen(0);
   base = `${await app.getUrl()}/api`.replace('[::1]', 'localhost');
 });
@@ -233,5 +237,58 @@ describe('hardening', () => {
     } finally {
       await db.query(`UPDATE users SET "isActive" = true WHERE email = 'khalid@guides.test'`);
     }
+  });
+});
+
+describe('arabic', () => {
+  const ar = { 'accept-language': 'ar-SA,ar;q=0.9,en;q=0.5' };
+
+  it('returns Arabic content names when asked, English otherwise', async () => {
+    const en = await call('GET', '/sites?q=Hegra');
+    expect(en.body.items[0].name).toBe("Hegra (Mada'in Salih)");
+    const arabic = await call('GET', '/sites?q=Hegra', undefined, undefined, ar);
+    expect(arabic.body.items[0].name).toBe('الحِجر (مدائن صالح)');
+    expect(arabic.body.items[0].city.name).toBe('العُلا');
+
+    const guides = await call('GET', '/guides?q=Noura', undefined, undefined, ar);
+    expect(guides.body.items[0].cities.map((c: { name: string }) => c.name)).toContain('العُلا');
+  });
+
+  it('translates domain and auth errors', async () => {
+    const tourist = await login('aisha@example.com');
+    const guides = await call('GET', '/guides?q=Noura');
+    const profile = await call('GET', `/guides/${guides.body.items[0].id}`, undefined, undefined, ar);
+    expect(profile.body.packages[0].title).toMatch(/[\u0600-\u06FF]/);
+    const outside = await call(
+      'POST',
+      '/bookings/quote',
+      { packageId: profile.body.packages[0].id, startAt: `${nextWeekday(5)}T07:00:00Z`, groupSize: 2 },
+      tourist,
+      ar,
+    );
+    expect(outside.body.error).toBe('GUIDE_UNAVAILABLE');
+    expect(outside.body.message).toBe('المرشد غير متاح في هذا الوقت');
+
+    const bad = await call('POST', '/auth/login', { email: 'nobody@example.com', password: 'x' }, undefined, ar);
+    expect(bad.status).toBe(401);
+    expect(bad.body.message).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+  });
+
+  it("sends notifications in each user's saved language", async () => {
+    const guide = await login('faisal@guides.test');
+    const saved = await call('PATCH', '/auth/me', { locale: 'ar' }, guide);
+    expect(saved.body.locale).toBe('ar');
+    expect((await call('PATCH', '/auth/me', { locale: 'fr' }, guide)).status).toBe(400);
+
+    const { NotificationsService } = await import('../src/notifications/notifications.service');
+    const me = await call('GET', '/auth/me', undefined, guide);
+    await app.get(NotificationsService).notify({
+      userIds: [me.body.id],
+      type: 'NEW_BOOKING' as never,
+      message: (lang) => (lang === 'ar' ? { title: 'حجز جديد', body: 'نص' } : { title: 'New booking', body: 'text' }),
+    });
+    const inbox = await call('GET', '/me/notifications', undefined, guide);
+    expect(inbox.body.items[0].title).toBe('حجز جديد');
+    await call('PATCH', '/auth/me', { locale: 'en' }, guide);
   });
 });

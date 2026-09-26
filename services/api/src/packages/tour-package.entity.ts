@@ -29,6 +29,13 @@ export class TourPackage extends BaseEntity {
   @Column({ type: 'text', default: '' })
   description: string;
 
+  /** Arabic title/description written by the guide (optional). */
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  titleAr: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  descriptionAr: string | null;
+
   @Column({ type: 'int' })
   durationMinutes: number;
 

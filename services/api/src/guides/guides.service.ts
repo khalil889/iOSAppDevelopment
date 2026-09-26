@@ -155,7 +155,7 @@ export class GuidesService {
     const g = await this.guides.findOne({ where: { id }, relations: { sites: true } });
     return {
       ...guide,
-      sites: (g?.sites ?? []).map((s) => ({ id: s.id, name: s.name, category: s.category })),
+      sites: (g?.sites ?? []).map((s) => ({ id: s.id, name: s.name, nameAr: s.nameAr, category: s.category })),
       packages,
       reviews: reviews.map((r) => ({
         id: r.id,

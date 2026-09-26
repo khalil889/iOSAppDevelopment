@@ -16,10 +16,11 @@ import { randomInt } from 'crypto';
 import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
 import { GuideVerificationStatus, OtpPurpose, UserRole } from '../common/enums';
 import { Guide } from '../guides/guide.entity';
+import { currentLang, toLang } from '../common/i18n/lang';
 import { SMS_SENDER, SmsSender } from '../providers/sms/sms-sender.interface';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
-import { LoginDto, RegisterDto, RequestOtpDto, VerifyOtpDto } from './dto';
+import { LoginDto, RegisterDto, RequestOtpDto, UpdateMeDto, VerifyOtpDto } from './dto';
 import { OtpCode } from './otp-code.entity';
 import { TokenService } from './token.service';
 
@@ -142,7 +143,8 @@ export class AuthService {
       // Send first: if the gateway rejects the message, no code is stored and
       // the resend cooldown doesn't lock the user out.
       try {
-        await this.sms.send(dto.phone, `Your TourGuide code is ${code}`);
+        const lang = user?.locale ? toLang(user.locale) : currentLang();
+        await this.sms.send(dto.phone, lang === 'ar' ? `رمز التحقق في TourGuide: ${code}` : `Your TourGuide code is ${code}`);
       } catch (e) {
         this.logger.error(`OTP delivery failed: ${(e as Error).message}`);
         throw new ServiceUnavailableException('We could not send the SMS right now. Please try again shortly.');
@@ -214,6 +216,12 @@ export class AuthService {
   }
 
   async me(userId: string) {
+    return this.users.getById(userId);
+  }
+
+  async updateMe(userId: string, dto: UpdateMeDto) {
+    const patch = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
+    if (Object.keys(patch).length) await this.db.getRepository(User).update({ id: userId }, patch);
     return this.users.getById(userId);
   }
 

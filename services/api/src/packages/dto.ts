@@ -26,6 +26,13 @@ export class CreatePackageDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(4000)
   description?: string;
 
+  /** Arabic title shown to Arabic-speaking travellers (optional). */
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(3, 160)
+  titleAr?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(4000)
+  descriptionAr?: string;
+
   @ApiProperty({ example: 180 }) @IsInt() @Min(30) @Max(60 * 24 * 3)
   durationMinutes: number;
 

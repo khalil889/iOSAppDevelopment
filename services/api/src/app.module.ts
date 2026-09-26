@@ -1,6 +1,9 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { DomainErrorFilter } from './common/errors/domain-error.filter';
+import { HttpErrorFilter } from './common/errors/http-error.filter';
+import { LocalizeInterceptor } from './common/i18n/localize.interceptor';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -72,6 +75,9 @@ import { UsersModule } from './users/users.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_FILTER, useClass: HttpErrorFilter },
+    { provide: APP_FILTER, useClass: DomainErrorFilter },
+    { provide: APP_INTERCEPTOR, useClass: LocalizeInterceptor },
   ],
 })
 export class AppModule implements NestModule {

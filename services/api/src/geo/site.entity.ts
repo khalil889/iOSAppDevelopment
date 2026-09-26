@@ -9,8 +9,15 @@ export class Site extends BaseEntity {
   @Column({ type: 'varchar', length: 160 })
   name: string;
 
+  /** Arabic name; sent instead of `name` to clients that ask for Arabic. */
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  nameAr: string | null;
+
   @Column({ type: 'text', default: '' })
   description: string;
+
+  @Column({ type: 'text', nullable: true })
+  descriptionAr: string | null;
 
   @Column({ type: 'enum', enum: SiteCategory })
   category: SiteCategory;

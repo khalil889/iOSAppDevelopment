@@ -1,15 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource, In, IsNull } from 'typeorm';
+import { Lang, toLang } from '../common/i18n/lang';
 import { Paginated } from '../common/pagination';
+import { User } from '../users/user.entity';
 import { PUSH_SENDER, PushSender } from '../providers/push/push-sender.interface';
 import { DeviceToken, Notification, NotificationType } from './notification.entities';
+
+export type NotificationText = { title: string; body: string };
 
 export interface NotifyInput {
   userIds: string[];
   type: NotificationType;
-  title: string;
-  body: string;
+  /** Rendered once per recipient language (the user's saved locale). */
+  message: (lang: Lang) => NotificationText;
   data?: Record<string, string>;
 }
 
@@ -32,17 +36,22 @@ export class NotificationsService {
     if (!userIds.length) return;
     const data = { type: input.type, ...(input.data ?? {}) };
     try {
-      await this.db.getRepository(Notification).insert(
-        userIds.map((userId) => ({ userId, type: input.type, title: input.title, body: input.body, data })),
-      );
-      const devices = await this.db.getRepository(DeviceToken).find({ where: { userId: In(userIds) }, select: { token: true } });
-      if (!devices.length) return;
-      const res = await this.push.send(
-        devices.map((d) => d.token),
-        { title: input.title, body: input.body, data },
-      );
-      if (res.invalidTokens.length) {
-        await this.db.getRepository(DeviceToken).delete({ token: In(res.invalidTokens) });
+      const users = await this.db.getRepository(User).find({ where: { id: In(userIds) }, select: { id: true, locale: true } });
+      const byLang = new Map<Lang, string[]>();
+      for (const u of users) byLang.set(toLang(u.locale), [...(byLang.get(toLang(u.locale)) ?? []), u.id]);
+
+      for (const [lang, ids] of byLang) {
+        const text = input.message(lang);
+        await this.db.getRepository(Notification).insert(ids.map((userId) => ({ userId, type: input.type, ...text, data })));
+        const devices = await this.db.getRepository(DeviceToken).find({ where: { userId: In(ids) }, select: { token: true } });
+        if (!devices.length) continue;
+        const res = await this.push.send(
+          devices.map((d) => d.token),
+          { ...text, data },
+        );
+        if (res.invalidTokens.length) {
+          await this.db.getRepository(DeviceToken).delete({ token: In(res.invalidTokens) });
+        }
       }
     } catch (e) {
       this.logger.error(`notify ${input.type} failed: ${(e as Error).message}`);
@@ -83,8 +92,8 @@ export class NotificationsService {
   /** Once, 20-48h after a tour ends, remind tourists who haven't reviewed. */
   @Cron(CronExpression.EVERY_HOUR)
   async sendReviewReminders(now = new Date()): Promise<number> {
-    const rows: Array<{ id: string; touristId: string; title: string; guideName: string }> = await this.db.query(
-      `SELECT b.id, b."touristId", p.title, u."fullName" AS "guideName"
+    const rows: Array<{ id: string; touristId: string; title: string; titleAr: string | null; guideName: string }> = await this.db.query(
+      `SELECT b.id, b."touristId", p.title, p."titleAr", u."fullName" AS "guideName"
          FROM bookings b
          JOIN tour_packages p ON p.id = b."packageId"
          JOIN guides g ON g.id = b."guideId"
@@ -101,8 +110,12 @@ export class NotificationsService {
       await this.notify({
         userIds: [r.touristId],
         type: NotificationType.REVIEW_REMINDER,
-        title: 'How was your tour?',
-        body: `Tell other travellers about ${r.title} with ${r.guideName.split(' ')[0]}.`,
+        message: (lang) => {
+          const guide = r.guideName.split(' ')[0];
+          return lang === 'ar'
+            ? { title: 'كيف كانت جولتك؟', body: `شارك المسافرين تجربتك في ${r.titleAr || r.title} مع ${guide}.` }
+            : { title: 'How was your tour?', body: `Tell other travellers about ${r.title} with ${guide}.` };
+        },
         data: { bookingId: r.id, screen: 'review' },
       });
     }

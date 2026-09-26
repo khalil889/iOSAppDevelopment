@@ -34,6 +34,7 @@ import {
   User,
 } from '../entities';
 import { ADMIN, CITIES, COUNTRIES, GUIDES, PASSWORDS, SITES, TIME_OFF, TOURISTS, WEEKLY_HOURS } from './seed-data';
+import { CITIES_AR, COUNTRIES_AR, PACKAGES_AR, SITES_AR } from './seed-data.ar';
 import { toMinutes } from '../../availability/availability.rules';
 
 const FEE = Number(process.env.PLATFORM_FEE_PERCENT ?? 15);
@@ -57,7 +58,7 @@ async function run() {
 
   // --- Geography ---------------------------------------------------------
   const countries = new Map<string, Country>();
-  for (const c of COUNTRIES) countries.set(c.code, await ds.getRepository(Country).save(c));
+  for (const c of COUNTRIES) countries.set(c.code, await ds.getRepository(Country).save({ ...c, nameAr: COUNTRIES_AR[c.code] }));
 
   const cities = new Map<string, City>();
   for (const c of CITIES) {
@@ -65,6 +66,7 @@ async function run() {
       c.key,
       await ds.getRepository(City).save({
         name: c.name,
+        nameAr: CITIES_AR[c.key],
         countryId: countries.get(c.country)!.id,
         location: geoPoint(c.lat, c.lng),
         timezone: c.tz,
@@ -78,7 +80,9 @@ async function run() {
       s.key,
       await ds.getRepository(Site).save({
         name: s.name,
+        nameAr: SITES_AR[s.key]?.name,
         description: s.description,
+        descriptionAr: SITES_AR[s.key]?.description,
         category: s.category,
         cityId: cities.get(s.city)!.id,
         location: geoPoint(s.lat, s.lng),
@@ -180,7 +184,9 @@ async function run() {
           guideId: guide.id,
           cityId: cities.get(p.city)!.id,
           title: p.title,
+          titleAr: PACKAGES_AR[p.title]?.title,
           description: p.description,
+          descriptionAr: PACKAGES_AR[p.title]?.description,
           durationMinutes: p.durationMinutes,
           pricingType: p.pricingType,
           priceMinor: p.priceMinor,

@@ -6,7 +6,6 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { DomainErrorFilter } from './common/errors/domain-error.filter';
 import { productionConfigProblems } from './config/assert-production';
 import configuration from './config/configuration';
 
@@ -33,7 +32,6 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.enableCors({ origin: config.get<string[]>('corsOrigins'), credentials: true, exposedHeaders: ['x-request-id'] });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
-  app.useGlobalFilters(new DomainErrorFilter());
   app.enableShutdownHooks();
 
   if (!cfg.isProduction || process.env.ENABLE_SWAGGER === 'true') {
