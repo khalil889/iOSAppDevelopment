@@ -75,3 +75,21 @@ export enum OtpPurpose {
   LOGIN = 'LOGIN',
   VERIFY_PHONE = 'VERIFY_PHONE',
 }
+
+export enum PayoutStatus {
+  /** In a payout run, waiting for the bank transfer. */
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  /** Transfer bounced; its payments go back to the next run. */
+  FAILED = 'FAILED',
+}
+
+/** Guide identity (ID document + liveness) verification with the identity provider. */
+export enum IdentityStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  /** Rejected, but the guide can fix it and resubmit. */
+  RETRY = 'RETRY',
+  REJECTED = 'REJECTED',
+}

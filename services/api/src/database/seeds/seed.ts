@@ -11,6 +11,7 @@ import {
   BookingStatus,
   EscrowStatus,
   GuideVerificationStatus,
+  IdentityStatus,
   KycStatus,
   UserRole,
 } from '../../common/enums';
@@ -36,6 +37,9 @@ import {
 import { ADMIN, CITIES, COUNTRIES, GUIDES, PASSWORDS, SITES, TIME_OFF, TOURISTS, WEEKLY_HOURS } from './seed-data';
 import { CITIES_AR, COUNTRIES_AR, PACKAGES_AR, SITES_AR } from './seed-data.ar';
 import { toMinutes } from '../../availability/availability.rules';
+import { maskIban } from '../../payouts/iban';
+import { PayoutAccount } from '../../payouts/payout.entities';
+import { SecretBox } from '../../payouts/secret-box';
 
 const FEE = Number(process.env.PLATFORM_FEE_PERCENT ?? 15);
 const HOUR = 3_600_000;
@@ -164,6 +168,9 @@ async function run() {
       kycStatus: { clear: KycStatus.CLEAR, consider: KycStatus.CONSIDER, failed: KycStatus.FAILED }[check.status],
       kycReference: check.reference,
       kycResult: { provider: kyc.name, score: check.score, checks: check.checks },
+      // Layla hasn't done the ID + selfie check yet, so she can't be approved.
+      identityStatus: g.key === 'layla' ? IdentityStatus.NOT_STARTED : IdentityStatus.APPROVED,
+      identityCheckedAt: g.key === 'layla' ? null : submittedAt,
       cities: g.cities.map((k) => cities.get(k)!),
       sites: g.sites.map((k) => sites.get(k)!),
     });
@@ -212,6 +219,21 @@ async function run() {
   for (const [key, from, to, reason] of TIME_OFF) {
     const day = (n: number) => new Date(now.getTime() + n * 86_400_000).toISOString().slice(0, 10);
     await ds.getRepository(GuideTimeOff).insert({ guideId: guides.get(key)!.id, startDate: day(from), endDate: day(to), reason });
+  }
+
+  // --- Payout accounts (Noura has none, so payout runs skip her) -----------
+  const box = new SecretBox(process.env.PAYOUT_ENC_KEY ?? 'dev-only-payout-key');
+  for (const [key, holderName, iban, bankName] of [
+    ['faisal', 'Faisal Al-Harbi', 'SA0380000000608010167519', 'Al Rajhi Bank'],
+    ['mona', 'Mona Hassan', 'EG380019000500000000263180002', 'Banque Misr'],
+  ]) {
+    await ds.getRepository(PayoutAccount).insert({
+      guideId: guides.get(key)!.id,
+      holderName,
+      bankName,
+      ibanSealed: box.seal(iban),
+      ibanMasked: maskIban(iban),
+    });
   }
 
   // --- Bookings, payments, reviews -----------------------------------------

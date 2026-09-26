@@ -1,5 +1,6 @@
 import { GuideVerificationStatus as S } from '../common/enums';
 import { DomainError } from '../common/errors/domain-error';
+import { IdentityStatus } from '../common/enums';
 import {
   assertCanApprove,
   assertCanReject,
@@ -17,7 +18,12 @@ const code = (fn: () => unknown) => {
 };
 
 describe('guide verification rules', () => {
-  const pending = { verificationStatus: S.PENDING, licenseNumber: 'SA-123', licenseExpiresAt: '2027-01-01' };
+  const pending = {
+    verificationStatus: S.PENDING,
+    licenseNumber: 'SA-123',
+    licenseExpiresAt: '2027-01-01',
+    identityStatus: IdentityStatus.APPROVED,
+  };
 
   it('approves pending guides with a valid license', () => {
     expect(code(() => assertCanApprove(pending, NOW))).toBeNull();
@@ -27,6 +33,7 @@ describe('guide verification rules', () => {
     expect(code(() => assertCanApprove({ ...pending, verificationStatus: S.APPROVED }, NOW))).toBe('NOT_PENDING');
     expect(code(() => assertCanApprove({ ...pending, licenseNumber: null }, NOW))).toBe('LICENSE_MISSING');
     expect(code(() => assertCanApprove({ ...pending, licenseExpiresAt: '2026-04-30' }, NOW))).toBe('LICENSE_EXPIRED');
+    expect(code(() => assertCanApprove({ ...pending, identityStatus: IdentityStatus.PENDING }, NOW))).toBe('IDENTITY_NOT_VERIFIED');
   });
 
   it('requires a reason to reject', () => {

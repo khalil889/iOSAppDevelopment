@@ -1,6 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { PayoutsModule } from './payouts/payouts.module';
 import { DomainErrorFilter } from './common/errors/domain-error.filter';
 import { HttpErrorFilter } from './common/errors/http-error.filter';
 import { LocalizeInterceptor } from './common/i18n/localize.interceptor';
@@ -69,6 +71,8 @@ import { UsersModule } from './users/users.module';
     DisputesModule,
     AssistantModule,
     AdminModule,
+    PayoutsModule,
+    AnalyticsModule,
   ],
   controllers: [HealthController],
   providers: [

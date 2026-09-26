@@ -9,7 +9,10 @@ export interface AppConfig {
   loginLockout: { maxAttempts: number; minutes: number };
   corsOrigins: string[];
   otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean; allowedPrefixes: string[] };
-  providers: { sms: string; payment: string; kyc: string; ai: string; storage: string; push: string };
+  providers: { sms: string; payment: string; kyc: string; identity: string; ai: string; storage: string; push: string };
+  /** 32-byte key (base64 or hex) that encrypts guides' bank details. */
+  payoutEncKey: string;
+  sumsub: { apiUrl: string; appToken: string; secretKey: string; webhookSecret: string; levelName: string };
   firebase: { serviceAccount: string };
   publicApiUrl: string;
   /** E.164 numbers texted on every SOS alert. */
@@ -81,11 +84,20 @@ export default (): AppConfig => ({
     sms: process.env.SMS_PROVIDER ?? 'stub',
     payment: process.env.PAYMENT_PROVIDER ?? 'stub',
     kyc: process.env.KYC_PROVIDER ?? 'stub',
+    identity: process.env.IDENTITY_PROVIDER ?? 'stub',
     ai: process.env.AI_PROVIDER ?? 'stub',
     storage: process.env.STORAGE_PROVIDER ?? 'local',
     push: process.env.PUSH_PROVIDER ?? 'stub',
   },
   firebase: { serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT ?? '' },
+  payoutEncKey: process.env.PAYOUT_ENC_KEY ?? 'dev-only-payout-key',
+  sumsub: {
+    apiUrl: (process.env.SUMSUB_API_URL ?? 'https://api.sumsub.com').replace(/\/$/, ''),
+    appToken: process.env.SUMSUB_APP_TOKEN ?? '',
+    secretKey: process.env.SUMSUB_SECRET_KEY ?? '',
+    webhookSecret: process.env.SUMSUB_WEBHOOK_SECRET ?? '',
+    levelName: process.env.SUMSUB_LEVEL_NAME ?? 'id-and-liveness',
+  },
   publicApiUrl: (process.env.PUBLIC_API_URL ?? `http://localhost:${int(process.env.PORT, 3000)}`).replace(/\/$/, ''),
   opsAlertPhones: (process.env.OPS_ALERT_PHONES ?? '').split(',').map((p) => p.trim()).filter(Boolean),
   storage: { uploadDir: process.env.UPLOAD_DIR ?? 'uploads' },

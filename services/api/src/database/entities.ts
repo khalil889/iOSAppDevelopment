@@ -14,6 +14,7 @@ import { TourPackage } from '../packages/tour-package.entity';
 import { Payment } from '../payments/payment.entity';
 import { Review } from '../reviews/review.entity';
 import { User } from '../users/user.entity';
+import { Payout, PayoutAccount, PayoutRun } from '../payouts/payout.entities';
 
 export const ENTITIES = [
   User,
@@ -34,6 +35,9 @@ export const ENTITIES = [
   DeviceToken,
   Notification,
   AuthSession,
+  PayoutAccount,
+  PayoutRun,
+  Payout,
 ];
 
 export {
@@ -55,4 +59,7 @@ export {
   DeviceToken,
   Notification,
   AuthSession,
+  PayoutAccount,
+  PayoutRun,
+  Payout,
 };

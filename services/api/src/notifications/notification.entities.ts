@@ -42,6 +42,9 @@ export enum NotificationType {
   GUIDE_REJECTED = 'GUIDE_REJECTED',
   DISPUTE_OPENED = 'DISPUTE_OPENED',
   DISPUTE_RESOLVED = 'DISPUTE_RESOLVED',
+  IDENTITY_VERIFIED = 'IDENTITY_VERIFIED',
+  IDENTITY_NEEDS_ACTION = 'IDENTITY_NEEDS_ACTION',
+  PAYOUT_SENT = 'PAYOUT_SENT',
 }
 
 /** In-app inbox; every push is also stored here so nothing is lost if push is off. */

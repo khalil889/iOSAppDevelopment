@@ -51,4 +51,9 @@ export class Payment extends BaseEntity {
 
   @Column({ type: 'text', nullable: true })
   failureReason: string | null;
+
+  /** Payout that covers `releasedMinor` (null = still owed to the guide). */
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  payoutId: string | null;
 }

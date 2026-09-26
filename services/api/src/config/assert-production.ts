@@ -1,3 +1,4 @@
+import { SecretBox } from '../payouts/secret-box';
 import { AppConfig } from './configuration';
 
 /**
@@ -13,6 +14,11 @@ export function productionConfigProblems(c: AppConfig, env: NodeJS.ProcessEnv = 
   if (c.providers.payment === 'stub') problems.push('PAYMENT_PROVIDER=stub accepts fake payments');
   if (c.providers.sms === 'stub') problems.push('SMS_PROVIDER=stub never delivers OTP codes (and logs them)');
   if (c.providers.payment === 'moyasar' && !c.moyasar.webhookSecret) problems.push('MOYASAR_WEBHOOK_SECRET is required');
+  if (!SecretBox.isStrongKey(env.PAYOUT_ENC_KEY)) {
+    problems.push('PAYOUT_ENC_KEY must be a 32-byte key (openssl rand -base64 32)');
+  }
+  if (c.providers.identity === 'stub') problems.push('IDENTITY_PROVIDER=stub approves every identity check');
+  if (c.providers.identity === 'sumsub' && !c.sumsub.webhookSecret) problems.push('SUMSUB_WEBHOOK_SECRET is required');
   if (c.providers.storage === 'local') problems.push('STORAGE_PROVIDER=local keeps documents on one server; use s3');
   if (c.corsOrigins.some((o) => o.includes('localhost'))) problems.push('CORS_ORIGINS must not include localhost');
   if (!c.publicApiUrl.startsWith('https://')) problems.push('PUBLIC_API_URL must be https');

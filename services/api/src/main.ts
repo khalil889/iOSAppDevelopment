@@ -20,6 +20,8 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
+    // Webhook signatures (Sumsub) are computed over the exact request bytes.
+    rawBody: true,
     logger: new ConsoleLogger({ json: cfg.logFormat === 'json', colors: cfg.logFormat !== 'json' }),
   });
   const config = app.get(ConfigService);

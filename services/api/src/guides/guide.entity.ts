@@ -9,7 +9,7 @@ import {
   OneToOne,
 } from 'typeorm';
 import { BaseEntity } from '../common/base.entity';
-import { GuideVerificationStatus, KycStatus } from '../common/enums';
+import { GuideVerificationStatus, IdentityStatus, KycStatus } from '../common/enums';
 import type { User } from '../users/user.entity';
 import type { Country } from '../geo/country.entity';
 import type { City } from '../geo/city.entity';
@@ -86,6 +86,21 @@ export class Guide extends BaseEntity {
 
   @Column({ type: 'jsonb', nullable: true })
   kycResult: Record<string, unknown> | null;
+
+  // --- Identity verification (ID document + selfie, e.g. Sumsub) ---------
+  @Column({ type: 'enum', enum: IdentityStatus, default: IdentityStatus.NOT_STARTED })
+  identityStatus: IdentityStatus;
+
+  /** Provider's applicant id (Sumsub applicantId). */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  identityApplicantId: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  identityCheckedAt: Date | null;
+
+  /** Provider reject labels and the message meant for the guide. */
+  @Column({ type: 'jsonb', nullable: true })
+  identityReview: { labels?: string[]; comment?: string | null } | null;
 
   // --- Denormalised rating (recomputed when reviews change) --------------
   @Column({ type: 'numeric', precision: 3, scale: 2, default: 0, transformer: { to: (v) => v, from: (v) => Number(v) } })
