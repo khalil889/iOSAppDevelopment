@@ -38,6 +38,13 @@ export class PaymentsService {
     }
     payment ??= repo.create({ bookingId: booking.id, provider: this.provider.name });
 
+    // Retrying while a 3-D Secure attempt is pending: if that attempt already
+    // succeeded, use it instead of charging again.
+    if (payment.escrowStatus === EscrowStatus.PENDING && payment.providerRef && payment.providerRef !== paymentMethodToken) {
+      const earlier = await this.verifyPending(booking).catch(() => null);
+      if (earlier?.status === 'held') return earlier;
+    }
+
     const res = await this.provider.hold({
       bookingId: booking.id,
       amountMinor: booking.totalMinor,
@@ -127,7 +134,13 @@ export class PaymentsService {
    * tourist and release the remainder (minus the proportional platform fee) to
    * the guide.
    */
-  async settle(booking: Booking, refundPercent: number, reason: string): Promise<Payment | null> {
+  async settle(
+    booking: Booking,
+    refundPercent: number,
+    reason: string,
+    /** Which escrow states may be settled; the release job passes only HELD. */
+    from: EscrowStatus[] = [EscrowStatus.HELD, EscrowStatus.DISPUTED],
+  ): Promise<Payment | null> {
     const repo = this.db.getRepository(Payment);
     const payment = await repo.findOneBy({ bookingId: booking.id });
     if (!payment) return null;
@@ -135,16 +148,38 @@ export class PaymentsService {
       // Nothing was captured.
       return payment;
     }
-    if (payment.escrowStatus !== EscrowStatus.HELD && payment.escrowStatus !== EscrowStatus.DISPUTED) {
-      throw new DomainError('ALREADY_SETTLED', `Payment already ${payment.escrowStatus}`, 'conflict');
+
+    // Atomically claim the payment before touching the gateway, so concurrent
+    // cancels / dispute resolutions / releases can't each refund or pay out.
+    const claimed = await repo
+      .createQueryBuilder()
+      .update(Payment)
+      .set({ escrowStatus: EscrowStatus.SETTLING })
+      .where('id = :id AND "escrowStatus" IN (:...from)', { id: payment.id, from })
+      .returning(['escrowStatus'])
+      .execute();
+    if (!claimed.affected) {
+      throw new DomainError('ALREADY_SETTLED', 'This payment is already being settled or was settled', 'conflict');
     }
+    const previous = payment.escrowStatus;
 
     const refund = refundAmount(payment.amountMinor, refundPercent);
     const remaining = payment.amountMinor - refund;
     const payout = payment.amountMinor ? Math.round((booking.guidePayoutMinor * remaining) / payment.amountMinor) : 0;
 
-    if (refund > 0) await this.provider.refund(payment.providerRef!, refund, reason);
-    if (payout > 0) await this.provider.release(payment.providerRef!, payout, { guideId: booking.guideId });
+    try {
+      if (refund > 0) await this.provider.refund(payment.providerRef!, refund, reason);
+    } catch (e) {
+      // Nothing moved: put the escrow back so the action can be retried.
+      await repo.update({ id: payment.id, escrowStatus: EscrowStatus.SETTLING }, { escrowStatus: previous });
+      throw e;
+    }
+    try {
+      if (payout > 0) await this.provider.release(payment.providerRef!, payout, { guideId: booking.guideId });
+    } catch (e) {
+      // The refund already went out; record it and leave the payout for finance.
+      this.logger.error(`Payout record failed for booking ${booking.id} after refund: ${(e as Error).message}`);
+    }
 
     const now = new Date();
     Object.assign(payment, {
@@ -155,6 +190,20 @@ export class PaymentsService {
       releasedAt: payout > 0 ? now : null,
     });
     return repo.save(payment);
+  }
+
+  /**
+   * Refunds a gateway payment that isn't the one recorded for its booking
+   * (e.g. a 3-D Secure attempt that completed after the tourist retried with
+   * another card, or after the booking was cancelled).
+   */
+  async refundOrphan(providerRef: string): Promise<boolean> {
+    if (!this.provider.lookup) return false;
+    const found = await this.provider.lookup(providerRef);
+    if (!found || found.status !== 'captured' || found.refundableMinor <= 0) return false;
+    await this.provider.refund(providerRef, found.refundableMinor, 'Duplicate or late payment for a booking');
+    this.logger.warn(`Refunded orphan payment ${providerRef} (${found.refundableMinor})`);
+    return true;
   }
 
   /** Releases escrow for completed tours whose dispute window has passed. */
@@ -175,7 +224,8 @@ export class PaymentsService {
     for (const p of due) {
       if (!canReleaseEscrow(p, p.booking, disputed.has(p.bookingId), now)) continue;
       try {
-        await this.settle(p.booking, 0, 'Tour completed');
+        // Only from HELD: a dispute opened meanwhile (DISPUTED) must block the release.
+        await this.settle(p.booking, 0, 'Tour completed', [EscrowStatus.HELD]);
         released++;
       } catch (e) {
         this.logger.error(`Release failed for booking ${p.bookingId}: ${(e as Error).message}`);

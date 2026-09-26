@@ -86,8 +86,12 @@ export class SubmitApplicationDto {
   @IsOptional() @IsString() @MaxLength(300)
   licenseDocumentKey?: string;
 
-  @ApiPropertyOptional({ description: 'Legacy: link to a license scan hosted elsewhere' })
-  @IsOptional() @IsUrl({ require_tld: false })
+  @ApiPropertyOptional({ description: 'Legacy: https link to a license scan hosted elsewhere' })
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true, require_tld: true, allow_ip: false } as never)
+  @Matches(/^https:\/\/(?!localhost|127\.|10\.|169\.254\.|192\.168\.|\[)[^/\s]+\.[a-z]{2,}(?:[/?#]|$)/i, {
+    message: 'licenseDocumentUrl must be a public https link',
+  })
   licenseDocumentUrl?: string;
 }
 

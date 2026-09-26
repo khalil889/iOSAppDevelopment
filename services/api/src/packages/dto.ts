@@ -32,7 +32,7 @@ export class CreatePackageDto {
   @ApiProperty({ enum: PricingType }) @IsEnum(PricingType)
   pricingType: PricingType;
 
-  @ApiProperty({ description: 'Minor units, e.g. 45000 = 450.00 SAR' }) @IsInt() @Min(0)
+  @ApiProperty({ description: 'Minor units, e.g. 45000 = 450.00 SAR' }) @IsInt() @Min(0) @Max(10_000_000)
   priceMinor: number;
 
   @ApiProperty({ example: 'SAR' }) @Matches(/^[A-Z]{3}$/)

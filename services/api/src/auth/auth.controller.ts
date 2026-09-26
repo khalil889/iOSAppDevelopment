@@ -13,6 +13,7 @@ export class AuthController {
 
   /** Email + password sign-up; sends a phone verification OTP. */
   @Public()
+  @Throttle({ default: { limit: () => Number(process.env.REGISTER_RATE_LIMIT ?? 5), ttl: 60_000 } })
   @Post('register')
   register(@Body() dto: RegisterDto, @Headers('user-agent') ua?: string) {
     return this.auth.register(dto, ua);

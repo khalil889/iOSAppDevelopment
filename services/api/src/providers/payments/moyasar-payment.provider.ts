@@ -85,7 +85,9 @@ export class MoyasarPaymentProvider implements PaymentProvider {
         : await this.fetchPayment(ref);
     } catch (e) {
       if (e instanceof MoyasarError && e.status >= 400 && e.status < 500) {
-        return { status: 'failed', providerRef: ref, failureReason: e.message };
+        // Gateway error bodies can include internals; log them, show a generic reason.
+        this.logger.warn(`Moyasar rejected payment ${ref}: ${e.message}`);
+        return { status: 'failed', providerRef: ref, failureReason: 'The payment could not be verified. Please try again.' };
       }
       throw e;
     }
@@ -94,6 +96,18 @@ export class MoyasarPaymentProvider implements PaymentProvider {
 
   async verify(providerRef: string, expected: Omit<HoldRequest, 'paymentMethodToken'>): Promise<HoldResult> {
     return this.toHoldResult(await this.fetchPayment(providerRef), expected);
+  }
+
+  async lookup(providerRef: string) {
+    try {
+      const p = await this.fetchPayment(providerRef);
+      const status: 'captured' | 'pending' | 'failed' =
+        p.status === 'paid' || p.status === 'captured' ? 'captured' : p.status === 'initiated' || p.status === 'authorized' ? 'pending' : 'failed';
+      return { status, refundableMinor: p.amount - (p.refunded ?? 0) };
+    } catch (e) {
+      if (e instanceof MoyasarError && e.status < 500) return null;
+      throw e;
+    }
   }
 
   async release(providerRef: string, amountMinor: number, payee: { guideId: string }) {

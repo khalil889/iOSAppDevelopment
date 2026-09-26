@@ -46,6 +46,8 @@ export enum EscrowStatus {
   /** Frozen while a dispute is open. */
   DISPUTED = 'DISPUTED',
   FAILED = 'FAILED',
+  /** Claimed by one settlement while the gateway is called (prevents double refunds). */
+  SETTLING = 'SETTLING',
 }
 
 export enum DisputeStatus {

@@ -46,6 +46,10 @@ async function reset(ds: DataSource) {
 }
 
 async function run() {
+  if (process.env.NODE_ENV === 'production' && process.env.SEED_ALLOW_PRODUCTION !== 'yes') {
+    // The seed TRUNCATES every table and creates demo accounts with known passwords.
+    throw new Error('Refusing to seed with NODE_ENV=production (set SEED_ALLOW_PRODUCTION=yes to override)');
+  }
   const ds = await dataSource.initialize();
   await ds.runMigrations();
   await reset(ds);

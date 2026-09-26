@@ -29,12 +29,18 @@ describe('productionConfigProblems', () => {
         NODE_ENV: 'production',
         JWT_SECRET: 'x'.repeat(48),
         PAYMENT_PROVIDER: 'moyasar',
+        MOYASAR_WEBHOOK_SECRET: 'whsec',
         SMS_PROVIDER: 'mobishastra',
         STORAGE_PROVIDER: 's3',
         CORS_ORIGINS: 'https://admin.tourguide.sa',
         PUBLIC_API_URL: 'https://api.tourguide.sa',
       }),
     ).toEqual([]);
+  });
+
+  it('requires a Moyasar webhook secret', () => {
+    const problems = withEnv({ NODE_ENV: 'production', PAYMENT_PROVIDER: 'moyasar', MOYASAR_WEBHOOK_SECRET: '' });
+    expect(problems).toContain('MOYASAR_WEBHOOK_SECRET is required');
   });
 
   it('never echoes OTP codes in production', () => {

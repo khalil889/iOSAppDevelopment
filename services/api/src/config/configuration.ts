@@ -8,7 +8,7 @@ export interface AppConfig {
   logFormat: 'json' | 'text';
   loginLockout: { maxAttempts: number; minutes: number };
   corsOrigins: string[];
-  otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean };
+  otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean; allowedPrefixes: string[] };
   providers: { sms: string; payment: string; kyc: string; ai: string; storage: string; push: string };
   firebase: { serviceAccount: string };
   publicApiUrl: string;
@@ -74,6 +74,8 @@ export default (): AppConfig => ({
     maxAttempts: int(process.env.OTP_MAX_ATTEMPTS, 5),
     // Never echo codes in production, whatever the env says.
     devEcho: process.env.NODE_ENV !== 'production' && bool(process.env.OTP_DEV_ECHO, false),
+    // e.g. "+966,+971,+20,+962"; empty = any country
+    allowedPrefixes: (process.env.SMS_ALLOWED_PREFIXES ?? '').split(',').map((p) => p.trim()).filter(Boolean),
   },
   providers: {
     sms: process.env.SMS_PROVIDER ?? 'stub',

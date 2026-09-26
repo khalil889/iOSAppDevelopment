@@ -11,7 +11,8 @@ export function productionConfigProblems(c: AppConfig, env: NodeJS.ProcessEnv = 
     problems.push('JWT_SECRET must be set to a random string of at least 32 characters');
   }
   if (c.providers.payment === 'stub') problems.push('PAYMENT_PROVIDER=stub accepts fake payments');
-  if (c.providers.sms === 'stub') problems.push('SMS_PROVIDER=stub never delivers OTP codes');
+  if (c.providers.sms === 'stub') problems.push('SMS_PROVIDER=stub never delivers OTP codes (and logs them)');
+  if (c.providers.payment === 'moyasar' && !c.moyasar.webhookSecret) problems.push('MOYASAR_WEBHOOK_SECRET is required');
   if (c.providers.storage === 'local') problems.push('STORAGE_PROVIDER=local keeps documents on one server; use s3');
   if (c.corsOrigins.some((o) => o.includes('localhost'))) problems.push('CORS_ORIGINS must not include localhost');
   if (!c.publicApiUrl.startsWith('https://')) problems.push('PUBLIC_API_URL must be https');

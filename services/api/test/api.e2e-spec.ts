@@ -193,3 +193,45 @@ describe('sessions', () => {
     }
   });
 });
+
+describe('hardening', () => {
+  it('lets only one of two concurrent cancels through and refunds once', async () => {
+    const { DataSource } = await import('typeorm');
+    const tourist = await login('aisha@example.com');
+    const guides = await call('GET', '/guides?q=Noura');
+    const profile = await call('GET', `/guides/${guides.body.items[0].id}`);
+    const pkg = profile.body.packages[0];
+    const slots = await call('GET', `/availability/slots?packageId=${pkg.id}&date=${nextWeekday(3)}`);
+    const booking = await call('POST', '/bookings', { packageId: pkg.id, startAt: slots.body.slots[1].startAt, groupSize: 1 }, tourist);
+    await call('POST', `/bookings/${booking.body.id}/pay`, { paymentMethodToken: 'tok_ok' }, tourist);
+
+    const results = await Promise.all([1, 2].map(() => call('POST', `/bookings/${booking.body.id}/cancel`, { reason: 'race' }, tourist)));
+    expect(results.filter((r) => r.status < 300)).toHaveLength(1);
+
+    const rows = await app
+      .get(DataSource)
+      .query(`SELECT "escrowStatus", "refundedMinor" FROM payments WHERE "bookingId" = $1`, [booking.body.id]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].escrowStatus).toBe('REFUNDED');
+  });
+
+  it('never signs admins in with a phone code alone', async () => {
+    const sent = await call<{ devCode?: string }>('POST', '/auth/otp/request', { phone: '+966500000001', purpose: 'LOGIN' });
+    expect(sent.status).toBe(200);
+    expect(sent.body.devCode).toBeUndefined();
+    const guess = await call('POST', '/auth/otp/verify', { phone: '+966500000001', purpose: 'LOGIN', code: '000000' });
+    expect(guess.status).toBe(401);
+  });
+
+  it('rejects access tokens of a deactivated account', async () => {
+    const { DataSource } = await import('typeorm');
+    const db = app.get(DataSource);
+    const token = await login('khalid@guides.test');
+    await db.query(`UPDATE users SET "isActive" = false WHERE email = 'khalid@guides.test'`);
+    try {
+      expect((await call('GET', '/auth/me', undefined, token)).status).toBe(401);
+    } finally {
+      await db.query(`UPDATE users SET "isActive" = true WHERE email = 'khalid@guides.test'`);
+    }
+  });
+});

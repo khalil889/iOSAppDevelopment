@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Ip, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
@@ -13,10 +13,10 @@ export class AssistantController {
 
   /** Stateless: the client sends the running conversation each time. */
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(200)
   @Post('chat')
-  chat(@Body() dto: ChatDto, @CurrentUser() user?: AuthUser) {
-    return this.assistant.chat(dto, user?.id);
+  chat(@Body() dto: ChatDto, @Ip() ip: string, @CurrentUser() user?: AuthUser) {
+    return this.assistant.chat(dto, user?.id, ip);
   }
 }

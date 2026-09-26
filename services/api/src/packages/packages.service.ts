@@ -50,6 +50,7 @@ export class PackagesService {
     const pkg = await this.packages.findOne({ where: { id }, relations: { sites: true } });
     if (!pkg) throw new NotFoundException('Package not found');
     if (pkg.guideId !== guide.id) throw new ForbiddenException('Not your package');
+    if (dto.cityId && !(await this.db.getRepository(City).existsBy({ id: dto.cityId }))) throw new NotFoundException('City not found');
     const { siteIds, ...fields } = dto;
     Object.assign(pkg, fields);
     if (siteIds) pkg.sites = await this.db.getRepository(Site).findBy({ id: In(siteIds) });

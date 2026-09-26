@@ -48,6 +48,8 @@ export interface PaymentProvider {
   clientConfig(): ClientPaymentConfig;
   /** Pay out `amountMinor` of held funds to the guide. */
   release(providerRef: string, amountMinor: number, payee: { guideId: string }): Promise<{ payoutRef: string }>;
+  /** Current state of a gateway payment, for reconciling orphaned charges. */
+  lookup?(providerRef: string): Promise<{ status: 'captured' | 'pending' | 'failed'; refundableMinor: number } | null>;
   /** Return `amountMinor` of held funds to the tourist. */
   refund(providerRef: string, amountMinor: number, reason: string): Promise<{ refundRef: string }>;
 }

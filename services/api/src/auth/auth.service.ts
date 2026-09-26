@@ -28,6 +28,8 @@ const DUMMY_HASH = '$2b$10$Jp4gfizzsukZ/h3Du5XsMukIUfO4SYLLqt6T6rSKGOT.SHZr.10tu
 
 /** Minimum gap between OTP sends to the same phone. */
 const OTP_RESEND_SECONDS = 30;
+const OTP_MAX_PER_HOUR = 5;
+const OTP_MAX_FAILED_PER_HOUR = 10;
 
 @Injectable()
 export class AuthService {
@@ -43,6 +45,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto, userAgent?: string) {
+    this.assertSmsCountryAllowed(dto.phone);
     const clash = await this.db.getRepository(User).findOne({
       where: [{ email: dto.email }, { phone: dto.phone }],
     });
@@ -115,6 +118,7 @@ export class AuthService {
   }
 
   async requestOtp(dto: RequestOtpDto): Promise<{ otpSent: true; devCode?: string }> {
+    this.assertSmsCountryAllowed(dto.phone);
     // Don't reveal whether a phone is registered for LOGIN; just skip sending.
     const user = await this.users.findByPhone(dto.phone);
     const recent = await this.otps.findOne({
@@ -125,9 +129,16 @@ export class AuthService {
       },
     });
     if (recent) throw new BadRequestException(`Please wait ${OTP_RESEND_SECONDS}s before requesting another code`);
+    // Caps SMS spend and the number of codes an attacker can cycle through.
+    const sentLastHour = await this.otps.count({ where: { phone: dto.phone, createdAt: MoreThan(new Date(Date.now() - 3_600_000)) } });
+    if (sentLastHour >= OTP_MAX_PER_HOUR) {
+      throw new HttpException('Too many codes requested for this number. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
+    }
 
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
-    if (user) {
+    // Admin accounts can't sign in with a phone code alone.
+    const sendable = user && !(dto.purpose === OtpPurpose.LOGIN && user.role === UserRole.ADMIN);
+    if (sendable) {
       // Send first: if the gateway rejects the message, no code is stored and
       // the resend cooldown doesn't lock the user out.
       try {
@@ -145,34 +156,61 @@ export class AuthService {
         }),
       );
     }
-    const devEcho = this.config.get<boolean>('otp.devEcho') && user;
+    const devEcho = this.config.get<boolean>('otp.devEcho') && sendable;
     return devEcho ? { otpSent: true, devCode: code } : { otpSent: true };
   }
 
   async verifyOtp(dto: VerifyOtpDto, userAgent?: string) {
     const invalid = new UnauthorizedException('Invalid or expired code');
+    // Failed guesses across all recent codes for this phone (codes can be re-requested).
+    const failedLastHour = await this.otps
+      .createQueryBuilder('o')
+      .select('COALESCE(SUM(o.attempts), 0)', 'n')
+      .where('o.phone = :phone AND o.createdAt > :since', { phone: dto.phone, since: new Date(Date.now() - 3_600_000) })
+      .getRawOne<{ n: string }>();
+    if (Number(failedLastHour?.n ?? 0) >= OTP_MAX_FAILED_PER_HOUR) {
+      throw new HttpException('Too many incorrect codes. Try again in an hour.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
     const otp = await this.otps.findOne({
       where: { phone: dto.phone, purpose: dto.purpose, consumedAt: IsNull(), expiresAt: MoreThan(new Date()) },
       order: { createdAt: 'DESC' },
     });
     if (!otp) throw invalid;
-    if (otp.attempts >= this.config.get<number>('otp.maxAttempts')!) {
-      throw new UnauthorizedException('Too many attempts; request a new code');
-    }
-    if (!(await bcrypt.compare(dto.code, otp.codeHash))) {
-      await this.otps.increment({ id: otp.id }, 'attempts', 1);
-      throw invalid;
-    }
-    await this.otps.update({ id: otp.id }, { consumedAt: new Date() });
+
+    // Count the attempt *before* checking, atomically, so parallel guesses
+    // can't all slip under the limit.
+    const maxAttempts = this.config.get<number>('otp.maxAttempts')!;
+    const counted = await this.otps
+      .createQueryBuilder()
+      .update(OtpCode)
+      .set({ attempts: () => 'attempts + 1' })
+      .where('id = :id AND attempts < :max', { id: otp.id, max: maxAttempts })
+      .execute();
+    if (!counted.affected) throw new UnauthorizedException('Too many attempts; request a new code');
+
+    if (!(await bcrypt.compare(dto.code, otp.codeHash))) throw invalid;
+    // Single use, even under concurrent correct submissions.
+    const consumed = await this.otps.update({ id: otp.id, consumedAt: IsNull() }, { consumedAt: new Date(), attempts: 0 });
+    if (!consumed.affected) throw invalid;
 
     const user = await this.users.findByPhone(dto.phone);
     if (!user || !user.isActive) throw invalid;
+    if (dto.purpose === OtpPurpose.LOGIN && user.role === UserRole.ADMIN) throw invalid;
     if (!user.phoneVerifiedAt) {
       await this.db.getRepository(User).update({ id: user.id }, { phoneVerifiedAt: new Date() });
     }
     // A verified phone code also clears a password lockout.
     await this.db.getRepository(User).update({ id: user.id }, { failedLoginCount: 0, lockedUntil: null });
     return this.issueToken(user.id, userAgent);
+  }
+
+  /** Optional allow-list of country prefixes for SMS (toll-fraud protection). */
+  private assertSmsCountryAllowed(phone: string) {
+    const allowed = this.config.get<string[]>('otp.allowedPrefixes') ?? [];
+    if (allowed.length && !allowed.some((p) => phone.startsWith(p))) {
+      throw new HttpException('SMS verification is not available for this country yet.', HttpStatus.UNPROCESSABLE_ENTITY);
+    }
   }
 
   async me(userId: string) {

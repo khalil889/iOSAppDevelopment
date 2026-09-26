@@ -1,4 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+
+const MAX_CONVERSATION_CHARS = 12_000;
+const DAILY_LIMIT = Number(process.env.ASSISTANT_DAILY_LIMIT ?? 100);
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { City } from '../geo/city.entity';
@@ -18,7 +21,26 @@ export class AssistantService {
     private readonly guides: GuidesService,
   ) {}
 
-  async chat(dto: ChatDto, userId?: string) {
+  /** Rough per-caller daily budget (per API instance) against cost abuse. */
+  private readonly daily = new Map<string, { day: string; count: number }>();
+
+  private assertBudget(key: string) {
+    const day = new Date().toISOString().slice(0, 10);
+    const entry = this.daily.get(key);
+    const count = entry && entry.day === day ? entry.count + 1 : 1;
+    if (count > DAILY_LIMIT) {
+      throw new HttpException("You've reached today's assistant limit. Try again tomorrow.", HttpStatus.TOO_MANY_REQUESTS);
+    }
+    this.daily.set(key, { day, count });
+    if (this.daily.size > 100_000) this.daily.clear();
+  }
+
+  async chat(dto: ChatDto, userId?: string, ip?: string) {
+    const chars = dto.messages.reduce((n, m) => n + m.content.length, 0);
+    if (chars > MAX_CONVERSATION_CHARS) {
+      throw new HttpException('This conversation is too long. Start a new chat.', HttpStatus.PAYLOAD_TOO_LARGE);
+    }
+    this.assertBudget(userId ? `u:${userId}` : `ip:${ip ?? 'unknown'}`);
     const city = await this.resolveCity(dto);
     const [user, sites, guides] = await Promise.all([
       userId ? this.users.findOneBy({ id: userId }) : null,
