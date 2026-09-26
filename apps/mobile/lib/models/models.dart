@@ -538,3 +538,151 @@ class Inbox {
         unread: _int(j['unread']),
       );
 }
+
+String? _nonEmpty(dynamic v) => v is String && v.trim().isNotEmpty ? v : null;
+
+/// Picks the Arabic text when the UI is Arabic and one is set.
+String pickLocalized(String en, String? ar, bool arabic) => arabic && ar != null && ar.trim().isNotEmpty ? ar : en;
+
+/// A city a guide can offer tours in, with the currency its tours are priced in.
+class TourCity {
+  TourCity({required this.id, required this.name, this.nameAr, this.currency});
+  final String id, name;
+  final String? nameAr;
+
+  /// ISO 4217 code from the city's country; null when the API didn't include it.
+  final String? currency;
+
+  String displayName(bool arabic) => pickLocalized(name, nameAr, arabic);
+
+  factory TourCity.fromJson(Map<String, dynamic> j) => TourCity(
+        id: j['id'],
+        name: j['name'] ?? '',
+        nameAr: _nonEmpty(j['nameAr']),
+        currency: j['country'] is Map ? j['country']['currency'] as String? : null,
+      );
+}
+
+/// A site attached to a guide's tour (both languages, from /packages/mine).
+class TourSite {
+  TourSite({required this.id, required this.name, this.nameAr, this.cityId});
+  final String id, name;
+  final String? nameAr, cityId;
+
+  String displayName(bool arabic) => pickLocalized(name, nameAr, arabic);
+
+  factory TourSite.fromJson(Map<String, dynamic> j) => TourSite(
+        id: j['id'],
+        name: j['name'] ?? '',
+        nameAr: _nonEmpty(j['nameAr']),
+        cityId: j['cityId'],
+      );
+}
+
+/// One of the signed-in guide's own tour packages, with every editable field
+/// in both languages (`GET /packages/mine` is not translated).
+class GuideTour {
+  GuideTour({
+    required this.id,
+    required this.cityId,
+    required this.title,
+    required this.durationMinutes,
+    required this.pricingType,
+    required this.priceMinor,
+    required this.currency,
+    required this.maxGroupSize,
+    this.city,
+    this.titleAr,
+    this.description = '',
+    this.descriptionAr,
+    this.languages = const [],
+    this.isActive = true,
+    this.sites = const [],
+    this.photoKeys = const [],
+    this.photoUrls = const [],
+  });
+
+  final String id, cityId, title, description, pricingType, currency;
+  final String? titleAr, descriptionAr;
+  final TourCity? city;
+  final int durationMinutes, priceMinor, maxGroupSize;
+  final List<String> languages, photoKeys, photoUrls;
+  final bool isActive;
+  final List<TourSite> sites;
+
+  bool get perPerson => pricingType == 'PER_PERSON';
+  List<String> get siteIds => [for (final s in sites) s.id];
+  String? get coverUrl => photoUrls.isEmpty ? null : photoUrls.first;
+
+  String displayTitle(bool arabic) => pickLocalized(title, titleAr, arabic);
+
+  factory GuideTour.fromJson(Map<String, dynamic> j) {
+    final city = j['city'] is Map ? TourCity.fromJson(Map<String, dynamic>.from(j['city'])) : null;
+    return GuideTour(
+      id: j['id'],
+      cityId: j['cityId'] ?? city?.id ?? '',
+      city: city,
+      title: j['title'] ?? '',
+      titleAr: _nonEmpty(j['titleAr']),
+      description: j['description'] ?? '',
+      descriptionAr: _nonEmpty(j['descriptionAr']),
+      durationMinutes: _int(j['durationMinutes']),
+      pricingType: j['pricingType'] ?? 'PER_GROUP',
+      priceMinor: _int(j['priceMinor']),
+      currency: j['currency'] ?? city?.currency ?? 'USD',
+      maxGroupSize: _int(j['maxGroupSize']),
+      languages: _strings(j['languages']),
+      isActive: j['isActive'] != false,
+      sites: (j['sites'] as List? ?? []).map((s) => TourSite.fromJson(Map<String, dynamic>.from(s))).toList(),
+      photoKeys: _strings(j['photoKeys']),
+      photoUrls: _strings(j['photoUrls']),
+    );
+  }
+}
+
+/// Fields sent when creating or editing a tour. The API derives the currency
+/// from the city, so it is not sent.
+class TourInput {
+  TourInput({
+    required this.cityId,
+    required this.title,
+    required this.durationMinutes,
+    required this.pricingType,
+    required this.priceMinor,
+    required this.maxGroupSize,
+    this.titleAr = '',
+    this.description = '',
+    this.descriptionAr = '',
+    this.languages = const [],
+    this.siteIds = const [],
+    this.photoKeys = const [],
+    this.isActive,
+  });
+
+  final String cityId, title, titleAr, description, descriptionAr, pricingType;
+  final int durationMinutes, priceMinor, maxGroupSize;
+  final List<String> languages, siteIds, photoKeys;
+  final bool? isActive;
+
+  /// On create, empty Arabic fields are left out; on update they are sent as
+  /// null so a cleared field is cleared on the server too.
+  Map<String, dynamic> toJson({bool update = false}) {
+    String? opt(String s) => s.trim().isEmpty ? null : s.trim();
+    final ar = opt(titleAr), descAr = opt(descriptionAr);
+    return {
+      'cityId': cityId,
+      'title': title.trim(),
+      if (ar != null || update) 'titleAr': ar,
+      'description': description.trim(),
+      if (descAr != null || update) 'descriptionAr': descAr,
+      'durationMinutes': durationMinutes,
+      'pricingType': pricingType,
+      'priceMinor': priceMinor,
+      'maxGroupSize': maxGroupSize,
+      'languages': languages,
+      'siteIds': siteIds,
+      'photoKeys': photoKeys,
+      if (isActive != null) 'isActive': isActive,
+    };
+  }
+}

@@ -61,6 +61,13 @@ Widget _app(Widget home, {Locale locale = const Locale('ar')}) {
   );
 }
 
+/// Tall enough for the dashboard's tiles and the upcoming-tours list.
+void _tallScreen(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 1400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
 TextDirection _dirOf(WidgetTester tester, Finder f) => Directionality.of(tester.element(f));
 
 void main() {
@@ -80,6 +87,7 @@ void main() {
   });
 
   testWidgets('dashboard renders in Arabic with plurals and the live badge', (tester) async {
+    _tallScreen(tester);
     await tester.pumpWidget(_app(const GuideDashboardScreen()));
     await tester.pumpAndSettle();
 
@@ -90,9 +98,11 @@ void main() {
     expect(find.text('الجولات القادمة'), findsOneWidget);
     expect(find.textContaining('شخصان'), findsOneWidget);
     expect(find.text('أوقات التوفر'), findsOneWidget);
+    expect(find.text('جولاتي'), findsOneWidget);
   });
 
   testWidgets('dashboard in English keeps the original copy', (tester) async {
+    _tallScreen(tester);
     await tester.pumpWidget(_app(const GuideDashboardScreen(), locale: const Locale('en')));
     await tester.pumpAndSettle();
 
@@ -101,6 +111,7 @@ void main() {
     expect(find.text('tours'), findsOneWidget);
     expect(find.textContaining('2 guests'), findsOneWidget);
     expect(find.text('LIVE'), findsOneWidget);
+    expect(find.text('My tours'), findsOneWidget);
   });
 
   testWidgets('license form is Arabic and validates in Arabic, license number stays LTR', (tester) async {

@@ -185,6 +185,48 @@ class Repository {
         if (documentKey != null) 'licenseDocumentKey': documentKey,
       });
 
+  // ---- Guide tours ---------------------------------------------------------
+  /// The signed-in guide's tours in both languages (not translated by the API).
+  Future<List<GuideTour>> myTours() async => (await api.get('/packages/mine') as List)
+      .map((p) => GuideTour.fromJson(Map<String, dynamic>.from(p)))
+      .toList();
+
+  Future<GuideTour> createTour(TourInput input) async =>
+      GuideTour.fromJson(await api.post('/packages', input.toJson()));
+
+  /// Sends only [fields], e.g. `{'isActive': false}`, or a full [TourInput.toJson].
+  Future<GuideTour> updateTour(String id, Map<String, dynamic> fields) async =>
+      GuideTour.fromJson(await api.patch('/packages/$id', fields));
+
+  /// Uploads one tour photo to storage and returns the key for `photoKeys`.
+  Future<String> uploadTourPhoto(List<int> bytes, String contentType) async {
+    final signed = await api.post('/packages/photo-upload', {'contentType': contentType, 'sizeBytes': bytes.length});
+    final headers = Map<String, String>.from(signed['headers'] as Map);
+    await api.uploadBytes(signed['uploadUrl'] as String, bytes, headers);
+    return signed['key'] as String;
+  }
+
+  /// Cities on the guide's profile, with each country's currency. `/guides/me`
+  /// returns the cities without their country, so they're matched against
+  /// `/cities` (which includes it and is translated for the UI language).
+  Future<List<TourCity>> myTourCities() async {
+    final results = await Future.wait([api.get('/guides/me'), api.get('/cities')]);
+    final me = results[0] as Map;
+    final all = {
+      for (final c in results[1] as List) (c as Map)['id']: TourCity.fromJson(Map<String, dynamic>.from(c)),
+    };
+    return [
+      for (final c in me['cities'] as List? ?? const [])
+        all[(c as Map)['id']] ?? TourCity.fromJson(Map<String, dynamic>.from(c)),
+    ];
+  }
+
+  /// Sites of one city for the tour form (names follow the UI language).
+  Future<List<TourSite>> citySites(String cityId) async {
+    final j = await api.get('/sites', query: {'cityId': cityId, 'limit': 50});
+    return (j['items'] as List).map((s) => TourSite.fromJson(Map<String, dynamic>.from(s))).toList();
+  }
+
   // ---- Notifications ------------------------------------------------------
   Future<void> registerDevice(String token, String platform) =>
       api.post('/me/devices', {'token': token, 'platform': platform});

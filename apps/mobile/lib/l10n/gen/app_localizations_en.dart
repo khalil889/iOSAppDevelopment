@@ -1104,4 +1104,253 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get widgetLicensedGuideRequired => 'A licensed guide is required here';
+
+  @override
+  String get toursTitle => 'My tours';
+
+  @override
+  String get toursDashboardSubtitle => 'Create and edit the tours you offer';
+
+  @override
+  String get toursEmpty =>
+      'You haven\'t created any tours yet. Travellers can book you once you publish a tour.';
+
+  @override
+  String get toursCreateFirst => 'Create your first tour';
+
+  @override
+  String get toursAdd => 'New tour';
+
+  @override
+  String get toursActive => 'Active';
+
+  @override
+  String get toursPaused => 'Paused';
+
+  @override
+  String get toursActiveToggle => 'Visible to travellers';
+
+  @override
+  String get toursNowActive => 'Tour is visible to travellers again.';
+
+  @override
+  String get toursNowPaused =>
+      'Tour paused. Travellers can\'t book it until you turn it back on.';
+
+  @override
+  String toursPricePerPerson(String price) {
+    return '$price per person';
+  }
+
+  @override
+  String toursPricePerGroup(String price) {
+    return '$price per group';
+  }
+
+  @override
+  String toursUpTo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Up to $count people',
+      one: 'Up to 1 person',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get toursNewTitle => 'New tour';
+
+  @override
+  String get toursEditTitle => 'Edit tour';
+
+  @override
+  String get toursSectionEnglish => 'English';
+
+  @override
+  String get toursSectionArabic => 'Arabic';
+
+  @override
+  String get toursArabicHint =>
+      'Optional. Shown to travellers who use the app in Arabic.';
+
+  @override
+  String get toursTitleEnLabel => 'Tour title';
+
+  @override
+  String get toursDescriptionEnLabel => 'Description';
+
+  @override
+  String get toursTitleArLabel => 'Tour title in Arabic';
+
+  @override
+  String get toursDescriptionArLabel => 'Description in Arabic';
+
+  @override
+  String get toursDescriptionHint => 'What travellers will see and do';
+
+  @override
+  String get toursTitleRequired => 'Enter a title of at least 3 characters';
+
+  @override
+  String get toursTitleTooShort =>
+      'Use at least 3 characters or leave it empty';
+
+  @override
+  String get toursSectionDetails => 'Tour details';
+
+  @override
+  String get toursCityLabel => 'City';
+
+  @override
+  String get toursCityRequired => 'Choose a city';
+
+  @override
+  String get toursNoCities =>
+      'Add the cities you work in to your guide profile, then come back to create a tour there.';
+
+  @override
+  String get toursSitesLabel => 'Sites on this tour';
+
+  @override
+  String get toursSitesPickCity => 'Choose a city to see its sites.';
+
+  @override
+  String get toursSitesEmpty => 'No sites are listed for this city yet.';
+
+  @override
+  String get toursDurationLabel => 'Duration';
+
+  @override
+  String get toursDecrease => 'Decrease';
+
+  @override
+  String get toursIncrease => 'Increase';
+
+  @override
+  String get toursPricingLabel => 'Pricing';
+
+  @override
+  String get toursPricingPerGroup => 'Per group';
+
+  @override
+  String get toursPricingPerPerson => 'Per person';
+
+  @override
+  String get toursPriceLabel => 'Price';
+
+  @override
+  String get toursPriceHelperPerGroup => 'One price for the whole group';
+
+  @override
+  String get toursPriceHelperPerPerson => 'Charged for each traveller';
+
+  @override
+  String get toursPriceRequired => 'Enter a price';
+
+  @override
+  String toursPriceInvalid(int decimals) {
+    String _temp0 = intl.Intl.pluralLogic(
+      decimals,
+      locale: localeName,
+      other: 'Enter a price with at most $decimals decimal places',
+      one: 'Enter a price with at most 1 decimal place',
+      zero: 'Enter a whole number',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String toursPriceTooHigh(String max) {
+    return 'The price must be at most $max';
+  }
+
+  @override
+  String get toursGroupSizeLabel => 'Maximum group size';
+
+  @override
+  String toursPeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people',
+      one: '1 person',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get toursLanguagesLabel => 'Languages you guide this tour in';
+
+  @override
+  String get toursLanguagesRequired => 'Choose at least one language';
+
+  @override
+  String get toursLangZh => 'Chinese';
+
+  @override
+  String get toursLangRu => 'Russian';
+
+  @override
+  String get toursLangHi => 'Hindi';
+
+  @override
+  String get toursLangTr => 'Turkish';
+
+  @override
+  String get toursPhotosLabel => 'Photos';
+
+  @override
+  String toursPhotosHint(int max) {
+    String _temp0 = intl.Intl.pluralLogic(
+      max,
+      locale: localeName,
+      other: 'Up to $max photos.',
+      one: 'Up to 1 photo.',
+    );
+    return '$_temp0 The first photo is the cover.';
+  }
+
+  @override
+  String get toursAddPhoto => 'Add photo';
+
+  @override
+  String get toursTakePhoto => 'Take a photo';
+
+  @override
+  String get toursChoosePhoto => 'Choose from gallery';
+
+  @override
+  String get toursCover => 'Cover';
+
+  @override
+  String get toursMakeCover => 'Make cover';
+
+  @override
+  String get toursRemovePhoto => 'Remove photo';
+
+  @override
+  String get toursPhotoTooLarge =>
+      'This photo is larger than 5 MB. Choose a smaller one.';
+
+  @override
+  String get toursPhotoUploading => 'Uploading photo…';
+
+  @override
+  String get toursActiveHint => 'Turn off to pause new bookings for this tour.';
+
+  @override
+  String get toursCreate => 'Create tour';
+
+  @override
+  String get toursSave => 'Save changes';
+
+  @override
+  String get toursSaving => 'Saving…';
+
+  @override
+  String get toursCreated => 'Tour created.';
+
+  @override
+  String get toursSaved => 'Tour updated.';
 }

@@ -1124,4 +1124,266 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get widgetLicensedGuideRequired =>
       'يلزم وجود مرشد مرخّص لزيارة هذا المكان';
+
+  @override
+  String get toursTitle => 'جولاتي';
+
+  @override
+  String get toursDashboardSubtitle => 'أنشئ الجولات التي تقدّمها وعدّلها';
+
+  @override
+  String get toursEmpty =>
+      'لم تُنشئ أي جولة بعد. يمكن للمسافرين حجزك بعد أن تنشر جولة.';
+
+  @override
+  String get toursCreateFirst => 'أنشئ جولتك الأولى';
+
+  @override
+  String get toursAdd => 'جولة جديدة';
+
+  @override
+  String get toursActive => 'نشطة';
+
+  @override
+  String get toursPaused => 'متوقفة';
+
+  @override
+  String get toursActiveToggle => 'ظاهرة للمسافرين';
+
+  @override
+  String get toursNowActive => 'أصبحت الجولة ظاهرة للمسافرين من جديد.';
+
+  @override
+  String get toursNowPaused =>
+      'أُوقفت الجولة مؤقتًا، ولن يتمكن المسافرون من حجزها حتى تعيد تفعيلها.';
+
+  @override
+  String toursPricePerPerson(String price) {
+    return '$price للشخص';
+  }
+
+  @override
+  String toursPricePerGroup(String price) {
+    return '$price للمجموعة';
+  }
+
+  @override
+  String toursUpTo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'حتى $count شخص',
+      many: 'حتى $count شخصًا',
+      few: 'حتى $count أشخاص',
+      two: 'شخصان كحدٍّ أقصى',
+      one: 'شخص واحد كحدٍّ أقصى',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get toursNewTitle => 'جولة جديدة';
+
+  @override
+  String get toursEditTitle => 'تعديل الجولة';
+
+  @override
+  String get toursSectionEnglish => 'الإنجليزية';
+
+  @override
+  String get toursSectionArabic => 'العربية';
+
+  @override
+  String get toursArabicHint =>
+      'اختياري. يظهر للمسافرين الذين يستخدمون التطبيق باللغة العربية.';
+
+  @override
+  String get toursTitleEnLabel => 'عنوان الجولة';
+
+  @override
+  String get toursDescriptionEnLabel => 'الوصف';
+
+  @override
+  String get toursTitleArLabel => 'عنوان الجولة بالعربية';
+
+  @override
+  String get toursDescriptionArLabel => 'الوصف بالعربية';
+
+  @override
+  String get toursDescriptionHint => 'ما الذي سيشاهده المسافرون ويفعلونه';
+
+  @override
+  String get toursTitleRequired => 'أدخل عنوانًا لا يقل عن 3 أحرف';
+
+  @override
+  String get toursTitleTooShort =>
+      'استخدم 3 أحرف على الأقل أو اترك الحقل فارغًا';
+
+  @override
+  String get toursSectionDetails => 'تفاصيل الجولة';
+
+  @override
+  String get toursCityLabel => 'المدينة';
+
+  @override
+  String get toursCityRequired => 'اختر مدينة';
+
+  @override
+  String get toursNoCities =>
+      'أضف المدن التي تعمل فيها إلى ملفك الشخصي كمرشد، ثم عُد لإنشاء جولة فيها.';
+
+  @override
+  String get toursSitesLabel => 'المواقع التي تشملها الجولة';
+
+  @override
+  String get toursSitesPickCity => 'اختر مدينة لعرض مواقعها.';
+
+  @override
+  String get toursSitesEmpty => 'لا توجد مواقع مُدرجة لهذه المدينة بعد.';
+
+  @override
+  String get toursDurationLabel => 'المدة';
+
+  @override
+  String get toursDecrease => 'إنقاص';
+
+  @override
+  String get toursIncrease => 'زيادة';
+
+  @override
+  String get toursPricingLabel => 'طريقة التسعير';
+
+  @override
+  String get toursPricingPerGroup => 'للمجموعة';
+
+  @override
+  String get toursPricingPerPerson => 'للشخص';
+
+  @override
+  String get toursPriceLabel => 'السعر';
+
+  @override
+  String get toursPriceHelperPerGroup => 'سعر واحد للمجموعة كاملة';
+
+  @override
+  String get toursPriceHelperPerPerson => 'يُحتسب عن كل مسافر';
+
+  @override
+  String get toursPriceRequired => 'أدخل السعر';
+
+  @override
+  String toursPriceInvalid(int decimals) {
+    String _temp0 = intl.Intl.pluralLogic(
+      decimals,
+      locale: localeName,
+      other: 'أدخل سعرًا بـ$decimals منزلة عشرية كحدٍّ أقصى',
+      many: 'أدخل سعرًا بـ$decimals منزلةً عشرية كحدٍّ أقصى',
+      few: 'أدخل سعرًا بـ$decimals منازل عشرية كحدٍّ أقصى',
+      two: 'أدخل سعرًا بمنزلتين عشريتين كحدٍّ أقصى',
+      one: 'أدخل سعرًا بمنزلة عشرية واحدة كحدٍّ أقصى',
+      zero: 'أدخل عددًا صحيحًا',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String toursPriceTooHigh(String max) {
+    return 'يجب ألا يزيد السعر على $max';
+  }
+
+  @override
+  String get toursGroupSizeLabel => 'الحد الأقصى لعدد المشاركين';
+
+  @override
+  String toursPeople(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count شخص',
+      many: '$count شخصًا',
+      few: '$count أشخاص',
+      two: 'شخصان',
+      one: 'شخص واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get toursLanguagesLabel => 'اللغات التي تقدّم بها الجولة';
+
+  @override
+  String get toursLanguagesRequired => 'اختر لغة واحدة على الأقل';
+
+  @override
+  String get toursLangZh => 'الصينية';
+
+  @override
+  String get toursLangRu => 'الروسية';
+
+  @override
+  String get toursLangHi => 'الهندية';
+
+  @override
+  String get toursLangTr => 'التركية';
+
+  @override
+  String get toursPhotosLabel => 'الصور';
+
+  @override
+  String toursPhotosHint(int max) {
+    String _temp0 = intl.Intl.pluralLogic(
+      max,
+      locale: localeName,
+      other: 'حتى $max صورة.',
+      many: 'حتى $max صورة.',
+      few: 'حتى $max صور.',
+      two: 'صورتان كحدٍّ أقصى.',
+      one: 'صورة واحدة كحدٍّ أقصى.',
+    );
+    return '$_temp0 الصورة الأولى هي صورة الغلاف.';
+  }
+
+  @override
+  String get toursAddPhoto => 'إضافة صورة';
+
+  @override
+  String get toursTakePhoto => 'التقاط صورة';
+
+  @override
+  String get toursChoosePhoto => 'اختيار من المعرض';
+
+  @override
+  String get toursCover => 'الغلاف';
+
+  @override
+  String get toursMakeCover => 'تعيين كغلاف';
+
+  @override
+  String get toursRemovePhoto => 'إزالة الصورة';
+
+  @override
+  String get toursPhotoTooLarge =>
+      'حجم هذه الصورة أكبر من 5 ميغابايت. اختر صورة أصغر.';
+
+  @override
+  String get toursPhotoUploading => 'جارٍ رفع الصورة…';
+
+  @override
+  String get toursActiveHint =>
+      'أوقف التفعيل لإيقاف الحجوزات الجديدة لهذه الجولة مؤقتًا.';
+
+  @override
+  String get toursCreate => 'إنشاء الجولة';
+
+  @override
+  String get toursSave => 'حفظ التغييرات';
+
+  @override
+  String get toursSaving => 'جارٍ الحفظ…';
+
+  @override
+  String get toursCreated => 'أُنشئت الجولة.';
+
+  @override
+  String get toursSaved => 'حُدِّثت الجولة.';
 }

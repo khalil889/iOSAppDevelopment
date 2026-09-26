@@ -1999,6 +1999,414 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A licensed guide is required here'**
   String get widgetLicensedGuideRequired;
+
+  /// No description provided for @toursTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My tours'**
+  String get toursTitle;
+
+  /// No description provided for @toursDashboardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create and edit the tours you offer'**
+  String get toursDashboardSubtitle;
+
+  /// No description provided for @toursEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t created any tours yet. Travellers can book you once you publish a tour.'**
+  String get toursEmpty;
+
+  /// No description provided for @toursCreateFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your first tour'**
+  String get toursCreateFirst;
+
+  /// No description provided for @toursAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'New tour'**
+  String get toursAdd;
+
+  /// No description provided for @toursActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get toursActive;
+
+  /// No description provided for @toursPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get toursPaused;
+
+  /// No description provided for @toursActiveToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible to travellers'**
+  String get toursActiveToggle;
+
+  /// No description provided for @toursNowActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Tour is visible to travellers again.'**
+  String get toursNowActive;
+
+  /// No description provided for @toursNowPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Tour paused. Travellers can\'t book it until you turn it back on.'**
+  String get toursNowPaused;
+
+  /// No description provided for @toursPricePerPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'{price} per person'**
+  String toursPricePerPerson(String price);
+
+  /// No description provided for @toursPricePerGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'{price} per group'**
+  String toursPricePerGroup(String price);
+
+  /// No description provided for @toursUpTo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Up to 1 person} other{Up to {count} people}}'**
+  String toursUpTo(int count);
+
+  /// No description provided for @toursNewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New tour'**
+  String get toursNewTitle;
+
+  /// No description provided for @toursEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit tour'**
+  String get toursEditTitle;
+
+  /// No description provided for @toursSectionEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get toursSectionEnglish;
+
+  /// No description provided for @toursSectionArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic'**
+  String get toursSectionArabic;
+
+  /// No description provided for @toursArabicHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Shown to travellers who use the app in Arabic.'**
+  String get toursArabicHint;
+
+  /// No description provided for @toursTitleEnLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tour title'**
+  String get toursTitleEnLabel;
+
+  /// No description provided for @toursDescriptionEnLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get toursDescriptionEnLabel;
+
+  /// No description provided for @toursTitleArLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tour title in Arabic'**
+  String get toursTitleArLabel;
+
+  /// No description provided for @toursDescriptionArLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Description in Arabic'**
+  String get toursDescriptionArLabel;
+
+  /// No description provided for @toursDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What travellers will see and do'**
+  String get toursDescriptionHint;
+
+  /// No description provided for @toursTitleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a title of at least 3 characters'**
+  String get toursTitleRequired;
+
+  /// No description provided for @toursTitleTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least 3 characters or leave it empty'**
+  String get toursTitleTooShort;
+
+  /// No description provided for @toursSectionDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Tour details'**
+  String get toursSectionDetails;
+
+  /// No description provided for @toursCityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get toursCityLabel;
+
+  /// No description provided for @toursCityRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a city'**
+  String get toursCityRequired;
+
+  /// No description provided for @toursNoCities.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the cities you work in to your guide profile, then come back to create a tour there.'**
+  String get toursNoCities;
+
+  /// No description provided for @toursSitesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sites on this tour'**
+  String get toursSitesLabel;
+
+  /// No description provided for @toursSitesPickCity.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a city to see its sites.'**
+  String get toursSitesPickCity;
+
+  /// No description provided for @toursSitesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sites are listed for this city yet.'**
+  String get toursSitesEmpty;
+
+  /// No description provided for @toursDurationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get toursDurationLabel;
+
+  /// No description provided for @toursDecrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease'**
+  String get toursDecrease;
+
+  /// No description provided for @toursIncrease.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase'**
+  String get toursIncrease;
+
+  /// No description provided for @toursPricingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pricing'**
+  String get toursPricingLabel;
+
+  /// No description provided for @toursPricingPerGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Per group'**
+  String get toursPricingPerGroup;
+
+  /// No description provided for @toursPricingPerPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'Per person'**
+  String get toursPricingPerPerson;
+
+  /// No description provided for @toursPriceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get toursPriceLabel;
+
+  /// No description provided for @toursPriceHelperPerGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'One price for the whole group'**
+  String get toursPriceHelperPerGroup;
+
+  /// No description provided for @toursPriceHelperPerPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'Charged for each traveller'**
+  String get toursPriceHelperPerPerson;
+
+  /// No description provided for @toursPriceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a price'**
+  String get toursPriceRequired;
+
+  /// No description provided for @toursPriceInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'{decimals, plural, =0{Enter a whole number} =1{Enter a price with at most 1 decimal place} other{Enter a price with at most {decimals} decimal places}}'**
+  String toursPriceInvalid(int decimals);
+
+  /// No description provided for @toursPriceTooHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'The price must be at most {max}'**
+  String toursPriceTooHigh(String max);
+
+  /// No description provided for @toursGroupSizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum group size'**
+  String get toursGroupSizeLabel;
+
+  /// No description provided for @toursPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 person} other{{count} people}}'**
+  String toursPeople(int count);
+
+  /// No description provided for @toursLanguagesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Languages you guide this tour in'**
+  String get toursLanguagesLabel;
+
+  /// No description provided for @toursLanguagesRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose at least one language'**
+  String get toursLanguagesRequired;
+
+  /// No description provided for @toursLangZh.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese'**
+  String get toursLangZh;
+
+  /// No description provided for @toursLangRu.
+  ///
+  /// In en, this message translates to:
+  /// **'Russian'**
+  String get toursLangRu;
+
+  /// No description provided for @toursLangHi.
+  ///
+  /// In en, this message translates to:
+  /// **'Hindi'**
+  String get toursLangHi;
+
+  /// No description provided for @toursLangTr.
+  ///
+  /// In en, this message translates to:
+  /// **'Turkish'**
+  String get toursLangTr;
+
+  /// No description provided for @toursPhotosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get toursPhotosLabel;
+
+  /// No description provided for @toursPhotosHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{max, plural, =1{Up to 1 photo.} other{Up to {max} photos.}} The first photo is the cover.'**
+  String toursPhotosHint(int max);
+
+  /// No description provided for @toursAddPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Add photo'**
+  String get toursAddPhoto;
+
+  /// No description provided for @toursTakePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get toursTakePhoto;
+
+  /// No description provided for @toursChoosePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from gallery'**
+  String get toursChoosePhoto;
+
+  /// No description provided for @toursCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover'**
+  String get toursCover;
+
+  /// No description provided for @toursMakeCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Make cover'**
+  String get toursMakeCover;
+
+  /// No description provided for @toursRemovePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove photo'**
+  String get toursRemovePhoto;
+
+  /// No description provided for @toursPhotoTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'This photo is larger than 5 MB. Choose a smaller one.'**
+  String get toursPhotoTooLarge;
+
+  /// No description provided for @toursPhotoUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading photo…'**
+  String get toursPhotoUploading;
+
+  /// No description provided for @toursActiveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off to pause new bookings for this tour.'**
+  String get toursActiveHint;
+
+  /// No description provided for @toursCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create tour'**
+  String get toursCreate;
+
+  /// No description provided for @toursSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get toursSave;
+
+  /// No description provided for @toursSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get toursSaving;
+
+  /// No description provided for @toursCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Tour created.'**
+  String get toursCreated;
+
+  /// No description provided for @toursSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Tour updated.'**
+  String get toursSaved;
 }
 
 class _AppLocalizationsDelegate

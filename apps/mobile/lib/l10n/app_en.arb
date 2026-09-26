@@ -655,5 +655,122 @@
       }
     }
   },
-  "widgetLicensedGuideRequired": "A licensed guide is required here"
+  "widgetLicensedGuideRequired": "A licensed guide is required here",
+  "toursTitle": "My tours",
+  "toursDashboardSubtitle": "Create and edit the tours you offer",
+  "toursEmpty": "You haven't created any tours yet. Travellers can book you once you publish a tour.",
+  "toursCreateFirst": "Create your first tour",
+  "toursAdd": "New tour",
+  "toursActive": "Active",
+  "toursPaused": "Paused",
+  "toursActiveToggle": "Visible to travellers",
+  "toursNowActive": "Tour is visible to travellers again.",
+  "toursNowPaused": "Tour paused. Travellers can't book it until you turn it back on.",
+  "toursPricePerPerson": "{price} per person",
+  "@toursPricePerPerson": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "toursPricePerGroup": "{price} per group",
+  "@toursPricePerGroup": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "toursUpTo": "{count, plural, =1{Up to 1 person} other{Up to {count} people}}",
+  "@toursUpTo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toursNewTitle": "New tour",
+  "toursEditTitle": "Edit tour",
+  "toursSectionEnglish": "English",
+  "toursSectionArabic": "Arabic",
+  "toursArabicHint": "Optional. Shown to travellers who use the app in Arabic.",
+  "toursTitleEnLabel": "Tour title",
+  "toursDescriptionEnLabel": "Description",
+  "toursTitleArLabel": "Tour title in Arabic",
+  "toursDescriptionArLabel": "Description in Arabic",
+  "toursDescriptionHint": "What travellers will see and do",
+  "toursTitleRequired": "Enter a title of at least 3 characters",
+  "toursTitleTooShort": "Use at least 3 characters or leave it empty",
+  "toursSectionDetails": "Tour details",
+  "toursCityLabel": "City",
+  "toursCityRequired": "Choose a city",
+  "toursNoCities": "Add the cities you work in to your guide profile, then come back to create a tour there.",
+  "toursSitesLabel": "Sites on this tour",
+  "toursSitesPickCity": "Choose a city to see its sites.",
+  "toursSitesEmpty": "No sites are listed for this city yet.",
+  "toursDurationLabel": "Duration",
+  "toursDecrease": "Decrease",
+  "toursIncrease": "Increase",
+  "toursPricingLabel": "Pricing",
+  "toursPricingPerGroup": "Per group",
+  "toursPricingPerPerson": "Per person",
+  "toursPriceLabel": "Price",
+  "toursPriceHelperPerGroup": "One price for the whole group",
+  "toursPriceHelperPerPerson": "Charged for each traveller",
+  "toursPriceRequired": "Enter a price",
+  "toursPriceInvalid": "{decimals, plural, =0{Enter a whole number} =1{Enter a price with at most 1 decimal place} other{Enter a price with at most {decimals} decimal places}}",
+  "@toursPriceInvalid": {
+    "placeholders": {
+      "decimals": {
+        "type": "int"
+      }
+    }
+  },
+  "toursPriceTooHigh": "The price must be at most {max}",
+  "@toursPriceTooHigh": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "toursGroupSizeLabel": "Maximum group size",
+  "toursPeople": "{count, plural, =1{1 person} other{{count} people}}",
+  "@toursPeople": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toursLanguagesLabel": "Languages you guide this tour in",
+  "toursLanguagesRequired": "Choose at least one language",
+  "toursLangZh": "Chinese",
+  "toursLangRu": "Russian",
+  "toursLangHi": "Hindi",
+  "toursLangTr": "Turkish",
+  "toursPhotosLabel": "Photos",
+  "toursPhotosHint": "{max, plural, =1{Up to 1 photo.} other{Up to {max} photos.}} The first photo is the cover.",
+  "@toursPhotosHint": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "toursAddPhoto": "Add photo",
+  "toursTakePhoto": "Take a photo",
+  "toursChoosePhoto": "Choose from gallery",
+  "toursCover": "Cover",
+  "toursMakeCover": "Make cover",
+  "toursRemovePhoto": "Remove photo",
+  "toursPhotoTooLarge": "This photo is larger than 5 MB. Choose a smaller one.",
+  "toursPhotoUploading": "Uploading photo…",
+  "toursActiveHint": "Turn off to pause new bookings for this tour.",
+  "toursCreate": "Create tour",
+  "toursSave": "Save changes",
+  "toursSaving": "Saving…",
+  "toursCreated": "Tour created.",
+  "toursSaved": "Tour updated."
 }

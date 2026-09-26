@@ -11,6 +11,7 @@ import '../shared/live_tour_screen.dart';
 import '../shared/push_listener.dart';
 import 'availability_screen.dart';
 import 'license_form_screen.dart';
+import 'my_tours_screen.dart';
 
 /// Guide mode home: verification status, earnings, stats and upcoming tours.
 class GuideDashboardScreen extends StatefulWidget {
@@ -93,6 +94,15 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
               ]),
             ),
           ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.tour_outlined),
+            title: Text(l10n.toursTitle),
+            subtitle: Text(l10n.toursDashboardSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyToursScreen())),
+          ),
+        ),
         Card(
           child: ListTile(
             leading: const Icon(Icons.schedule),
