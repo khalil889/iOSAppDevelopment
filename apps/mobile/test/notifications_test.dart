@@ -6,10 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tourguide_mobile/core/api_client.dart';
 import 'package:tourguide_mobile/core/inbox_controller.dart';
 import 'package:tourguide_mobile/core/session.dart';
+import 'package:tourguide_mobile/core/token_store.dart';
 import 'package:tourguide_mobile/models/models.dart';
 import 'package:tourguide_mobile/screens/shared/push_listener.dart';
 import 'package:tourguide_mobile/services/push_service.dart';
@@ -64,14 +64,13 @@ void main() {
   setUp(() {
     calls = [];
     unread = 3;
-    SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('bell shows unread count, inbox lists items and marks them read', (tester) async {
     final r = repo();
     final push = FakePush();
-    final session = Session(r.api, r, push: push);
-    await session.signIn('jwt', AppUser(id: 'u1', fullName: 'Faisal Al-Harbi', role: UserRole.guide));
+    final session = Session(r.api, r, push: push, store: MemoryTokenStore());
+    await session.signIn(AuthResult(accessToken: 'jwt', refreshToken: 'rt', user: AppUser(id: 'u1', fullName: 'Faisal Al-Harbi', role: UserRole.guide)));
     expect(push.signedIn, 1);
 
     await tester.pumpWidget(MultiProvider(
@@ -102,8 +101,8 @@ void main() {
   testWidgets('a push received while open shows a banner and refreshes the inbox', (tester) async {
     final r = repo();
     final push = FakePush();
-    final session = Session(r.api, r, push: push);
-    await session.signIn('jwt', AppUser(id: 'u1', fullName: 'Sara Williams', role: UserRole.tourist));
+    final session = Session(r.api, r, push: push, store: MemoryTokenStore());
+    await session.signIn(AuthResult(accessToken: 'jwt', refreshToken: 'rt', user: AppUser(id: 'u1', fullName: 'Sara Williams', role: UserRole.tourist)));
 
     await tester.pumpWidget(MultiProvider(
       providers: [
@@ -133,8 +132,8 @@ void main() {
   test('sign-out unregisters the device before dropping the token', () async {
     final r = repo();
     final push = FakePush();
-    final session = Session(r.api, r, push: push);
-    await session.signIn('jwt', AppUser(id: 'u1', fullName: 'x', role: UserRole.tourist));
+    final session = Session(r.api, r, push: push, store: MemoryTokenStore());
+    await session.signIn(AuthResult(accessToken: 'jwt', refreshToken: 'rt', user: AppUser(id: 'u1', fullName: 'x', role: UserRole.tourist)));
     await session.signOut();
     expect(push.signedOut, 1);
     expect(r.api.token, isNull);

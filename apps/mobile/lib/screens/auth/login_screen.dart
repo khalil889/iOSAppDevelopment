@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final res = await context.read<Repository>().login(_email.text.trim(), _password.text);
       if (!mounted) return;
-      await context.read<Session>().signIn(res.token, res.user);
+      await context.read<Session>().signIn(res);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) showError(context, e);

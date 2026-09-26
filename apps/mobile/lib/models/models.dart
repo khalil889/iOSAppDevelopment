@@ -43,6 +43,22 @@ class AppUser {
       );
 }
 
+class AuthResult {
+  AuthResult({required this.accessToken, required this.refreshToken, required this.user, this.devCode});
+  final String accessToken, refreshToken;
+  final AppUser user;
+
+  /// OTP code echoed by the API in development only.
+  final String? devCode;
+
+  factory AuthResult.fromJson(Map<String, dynamic> j) => AuthResult(
+        accessToken: j['accessToken'] as String,
+        refreshToken: j['refreshToken'] as String,
+        user: AppUser.fromJson(j['user']),
+        devCode: j['devCode'] as String?,
+      );
+}
+
 class Country {
   Country({required this.id, required this.code, required this.name, required this.currency});
   final String id, code, name, currency;

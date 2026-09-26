@@ -7,7 +7,7 @@ class Repository {
   final ApiClient api;
 
   // ---- Auth ---------------------------------------------------------------
-  Future<({String token, AppUser user, String? devCode})> register({
+  Future<AuthResult> register({
     required String email,
     required String password,
     required String fullName,
@@ -21,13 +21,15 @@ class Repository {
       'phone': phone,
       'role': role == UserRole.guide ? 'GUIDE' : 'TOURIST',
     });
-    return (token: j['accessToken'] as String, user: AppUser.fromJson(j['user']), devCode: j['devCode'] as String?);
+    return AuthResult.fromJson(j);
   }
 
-  Future<({String token, AppUser user})> login(String email, String password) async {
-    final j = await api.post('/auth/login', {'email': email, 'password': password});
-    return (token: j['accessToken'] as String, user: AppUser.fromJson(j['user']));
-  }
+  Future<AuthResult> login(String email, String password) async =>
+      AuthResult.fromJson(await api.post('/auth/login', {'email': email, 'password': password}));
+
+  Future<void> logout(String refreshToken) => api.post('/auth/logout', {'refreshToken': refreshToken});
+
+  Future<void> logoutAll() => api.post('/auth/logout-all');
 
   /// Returns the code in dev mode (OTP_DEV_ECHO=true) for convenience.
   Future<String?> requestOtp(String phone, {bool login = true}) async {
@@ -35,13 +37,13 @@ class Repository {
     return j['devCode'] as String?;
   }
 
-  Future<({String token, AppUser user})> verifyOtp(String phone, String code, {bool login = true}) async {
+  Future<AuthResult> verifyOtp(String phone, String code, {bool login = true}) async {
     final j = await api.post('/auth/otp/verify', {
       'phone': phone,
       'code': code,
       'purpose': login ? 'LOGIN' : 'VERIFY_PHONE',
     });
-    return (token: j['accessToken'] as String, user: AppUser.fromJson(j['user']));
+    return AuthResult.fromJson(j);
   }
 
   Future<AppUser> me() async => AppUser.fromJson(await api.get('/auth/me'));

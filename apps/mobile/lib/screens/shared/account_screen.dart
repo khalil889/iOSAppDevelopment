@@ -53,6 +53,31 @@ class AccountScreen extends StatelessWidget {
               title: const Text('Sign out'),
               onTap: () => context.read<Session>().signOut(),
             ),
+            ListTile(
+              leading: const Icon(Icons.devices_other),
+              title: const Text('Sign out of all devices'),
+              subtitle: const Text('Use this if you lost a phone'),
+              onTap: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sign out everywhere?'),
+                    content: const Text('You will need to sign in again on every device.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign out')),
+                    ],
+                  ),
+                );
+                if (ok == true && context.mounted) {
+                  try {
+                    await context.read<Session>().signOutEverywhere();
+                  } catch (e) {
+                    if (context.mounted) showError(context, e);
+                  }
+                }
+              },
+            ),
           ],
           const SizedBox(height: 32),
           Text('API: ${AppConfig.apiUrl}', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),

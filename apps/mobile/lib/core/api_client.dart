@@ -28,9 +28,15 @@ class ApiClient {
   final http.Client _http;
   final String _base;
   String? token;
+  String? refreshToken;
 
-  /// Called when the API rejects the token so the session can sign out.
+  /// Called when the session can't be refreshed so the app can sign out.
   void Function()? onUnauthorized;
+
+  /// Called after a successful refresh so the new tokens can be persisted.
+  Future<void> Function(String accessToken, String refreshToken)? onTokensRefreshed;
+
+  Future<bool>? _refreshing;
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final q = <String, String>{};
@@ -75,7 +81,7 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> _send(Future<http.Response> Function() request) async {
+  Future<dynamic> _send(Future<http.Response> Function() request, {bool retry = true}) async {
     final http.Response res;
     try {
       res = await request().timeout(const Duration(seconds: 20));
@@ -85,12 +91,40 @@ class ApiClient {
     final body = res.body.isEmpty ? null : jsonDecode(utf8.decode(res.bodyBytes));
     if (res.statusCode >= 200 && res.statusCode < 300) return body;
 
-    if (res.statusCode == 401 && token != null) onUnauthorized?.call();
+    if (res.statusCode == 401 && token != null) {
+      // The access token lives 15 minutes: refresh once, then replay the request.
+      if (retry && refreshToken != null && await _refresh()) return _send(request, retry: false);
+      onUnauthorized?.call();
+    }
     final msg = body is Map ? body['message'] : null;
     throw ApiException(
       res.statusCode,
       msg is List ? msg.join('\n') : (msg?.toString() ?? 'Request failed (${res.statusCode})'),
       code: body is Map ? body['error']?.toString() : null,
     );
+  }
+
+  /// Exchanges the refresh token for a new pair. Concurrent callers share one
+  /// request, because refresh tokens are single-use.
+  Future<bool> _refresh() {
+    return _refreshing ??= () async {
+      try {
+        final res = await _http
+            .post(_uri('/auth/refresh'),
+                headers: {'content-type': 'application/json', 'accept': 'application/json'},
+                body: jsonEncode({'refreshToken': refreshToken}))
+            .timeout(const Duration(seconds: 20));
+        if (res.statusCode != 200) return false;
+        final j = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        token = j['accessToken'] as String;
+        refreshToken = j['refreshToken'] as String;
+        await onTokensRefreshed?.call(token!, refreshToken!);
+        return true;
+      } catch (_) {
+        return false;
+      } finally {
+        _refreshing = null;
+      }
+    }();
   }
 }

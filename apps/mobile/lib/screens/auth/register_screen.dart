@@ -46,7 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         role: _role,
       );
       if (!mounted) return;
-      await context.read<Session>().signIn(res.token, res.user);
+      await context.read<Session>().signIn(res);
       if (!mounted) return;
       // Registration already sent a VERIFY_PHONE code; verifying it re-issues the session.
       final verified = await showModalBottomSheet<bool>(
@@ -155,7 +155,7 @@ class _VerifyPromptState extends State<_VerifyPrompt> {
     try {
       final res = await context.read<Repository>().verifyOtp(widget.phone, _code.text.trim(), login: false);
       if (!mounted) return;
-      await context.read<Session>().signIn(res.token, res.user);
+      await context.read<Session>().signIn(res);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       setState(() => _error = e.toString());
