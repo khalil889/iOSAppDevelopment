@@ -53,6 +53,8 @@ function Detail() {
 
   const expired = guide.licenseExpiresAt ? new Date(`${guide.licenseExpiresAt}T23:59:59Z`) < new Date() : false;
   const pending = guide.verificationStatus === 'PENDING';
+  const identity = guide.identityStatus ?? 'NOT_STARTED';
+  const identityOk = identity === 'APPROVED';
 
   return (
     <>
@@ -143,6 +145,39 @@ function Detail() {
         </section>
 
         <section className="card">
+          <h3>
+            {t('identity.title')} <StatusBadge kind="identityStatus" status={identity} />
+          </h3>
+          <dl>
+            <dt>{t('identity.checked')}</dt>
+            <dd>{formatDate(guide.identityCheckedAt)}</dd>
+            {!!guide.identityReview?.labels?.length && (
+              <>
+                <dt>{t('identity.labels')}</dt>
+                <dd>
+                  <div className="chips">
+                    {guide.identityReview.labels.map((l) => (
+                      <span key={l} className="badge bad nocap" title={l}>
+                        {label('identityLabel', l)}
+                      </span>
+                    ))}
+                  </div>
+                </dd>
+              </>
+            )}
+            {guide.identityReview?.comment && (
+              <>
+                <dt>{t('identity.comment')}</dt>
+                <dd>
+                  <bdi>{guide.identityReview.comment}</bdi>
+                </dd>
+              </>
+            )}
+          </dl>
+          <p className="muted small">{t('identity.help')}</p>
+        </section>
+
+        <section className="card">
           <h3>{t('guide.contact')}</h3>
           <dl>
             <dt>{t('guide.email')}</dt>
@@ -194,24 +229,32 @@ function Detail() {
         )}
 
         {pending && mode === null && (
-          <div className="row">
-            <input
-              placeholder={t('guide.notePlaceholder')}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <button
-              className="btn primary"
-              disabled={busy || expired}
-              title={expired ? t('guide.licenseExpired') : ''}
-              onClick={() => act(() => adminApi.approve(guide.id, note || undefined), t('guide.approved'))}
-            >
-              {t('guide.approve')}
-            </button>
-            <button className="btn danger" disabled={busy} onClick={() => setMode('reject')}>
-              {t('guide.reject')}
-            </button>
-          </div>
+          <>
+            <div className="row">
+              <input
+                placeholder={t('guide.notePlaceholder')}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <button
+                className="btn primary"
+                disabled={busy || expired}
+                title={expired ? t('guide.licenseExpired') : ''}
+                aria-describedby={identityOk ? undefined : 'identity-hint'}
+                onClick={() => act(() => adminApi.approve(guide.id, note || undefined), t('guide.approved'))}
+              >
+                {t('guide.approve')}
+              </button>
+              <button className="btn danger" disabled={busy} onClick={() => setMode('reject')}>
+                {t('guide.reject')}
+              </button>
+            </div>
+            {!identityOk && (
+              <p className="alert neutral small" id="identity-hint">
+                {t('identity.requiredHint', { status: label('identityStatus', identity) })}
+              </p>
+            )}
+          </>
         )}
 
         {guide.verificationStatus === 'APPROVED' && mode === null && (

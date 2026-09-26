@@ -12,6 +12,8 @@ const TONE: Record<string, string> = {
   CONSIDER: 'warn',
   FAILED: 'bad',
   NOT_STARTED: 'neutral',
+  PAID: 'ok',
+  RETRY: 'warn',
 };
 
 /** Translated status pill. `kind` picks the dictionary namespace (default: guide verification). */

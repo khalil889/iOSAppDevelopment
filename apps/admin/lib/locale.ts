@@ -59,6 +59,40 @@ export function formatMoney(minor: number, currency: string, locale: Locale): st
   }
 }
 
+/** Compact currency for chart axes: "SAR 12K" / "‏12 ألف ر.س.‏". */
+export function formatMoneyCompact(minor: number, currency: string, locale: Locale): string {
+  const value = minor / 10 ** (THREE_DECIMALS.includes(currency) ? 3 : 2);
+  try {
+    return new Intl.NumberFormat(intlTag(locale), {
+      ...intlBase,
+      style: 'currency',
+      currency,
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(value);
+  } catch {
+    return `${currency} ${formatNumber(value, locale, { notation: 'compact', maximumFractionDigits: 1 })}`;
+  }
+}
+
+/** Plain localized number (Western digits in both languages). */
+export function formatNumber(n: number, locale: Locale, opts: Intl.NumberFormatOptions = {}): string {
+  return new Intl.NumberFormat(intlTag(locale), { ...intlBase, ...opts }).format(n);
+}
+
+/** Calendar date ("YYYY-MM-DD") → day and short month, no year: "26 Sep". */
+export function formatDayShort(s: string, locale: Locale): string {
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T00:00:00Z` : s);
+  if (Number.isNaN(d.getTime())) return s;
+  return new Intl.DateTimeFormat(intlTag(locale), {
+    ...intlBase,
+    calendar: 'gregory',
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+  }).format(d);
+}
+
 /** ISO timestamp → localized date and time; '—' for empty. */
 export function formatDate(s: string | null | undefined, locale: Locale): string {
   if (!s) return '—';

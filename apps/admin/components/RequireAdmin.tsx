@@ -38,15 +38,21 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <header className="topbar">
-        <a href="/guides" className="brand">
+        <a href="/analytics" className="brand">
           <span className="logo">◎</span> {t('app.title')}
         </a>
         <nav aria-label={t('nav.label')}>
+          <a href="/analytics" className={pathname.startsWith('/analytics') ? 'active' : ''}>
+            {t('nav.overview')}
+          </a>
           <a href="/guides" className={pathname.startsWith('/guides') ? 'active' : ''}>
             {t('nav.guides')}
           </a>
           <a href="/disputes" className={pathname.startsWith('/disputes') ? 'active' : ''}>
             {t('nav.disputes')}
+          </a>
+          <a href="/payouts" className={pathname.startsWith('/payouts') ? 'active' : ''}>
+            {t('nav.payouts')}
           </a>
           <a href="/sos" className={pathname.startsWith('/sos') ? 'active' : ''}>
             {t('nav.sos')} {openSos > 0 && <span className="pill-alert">{openSos}</span>}
