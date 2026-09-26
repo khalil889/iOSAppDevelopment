@@ -1,4 +1,5 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { BookingStatus, EscrowStatus, GuideVerificationStatus, KycStatus } from '../common/enums';
@@ -9,8 +10,10 @@ import { Country } from '../geo/country.entity';
 import { Site } from '../geo/site.entity';
 import { TourPackage } from '../packages/tour-package.entity';
 import { KYC_PROVIDER, KycProvider } from '../providers/kyc/kyc-provider.interface';
+import { STORAGE_PROVIDER, StorageProvider } from '../providers/storage/storage.interface';
+import { DomainError } from '../common/errors/domain-error';
 import { Review } from '../reviews/review.entity';
-import { GuideSearchQuery, SubmitApplicationDto, UpdateGuideProfileDto } from './dto';
+import { GuideSearchQuery, LICENSE_CONTENT_TYPES, LicenseUploadDto, SubmitApplicationDto, UpdateGuideProfileDto } from './dto';
 import { GuideVerificationEvent } from './guide-verification-event.entity';
 import { assertCanSubmitApplication } from './guide-verification.rules';
 import { Guide } from './guide.entity';
@@ -24,6 +27,7 @@ export class GuidesService {
     @InjectRepository(Guide) private readonly guides: Repository<Guide>,
     private readonly db: DataSource,
     @Inject(KYC_PROVIDER) private readonly kyc: KycProvider,
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
 
   // ---------------------------------------------------------------- search
@@ -68,9 +72,16 @@ export class GuidesService {
       );
     }
     if (q.date) {
+      // Not on time off, and either no weekly hours configured or working that weekday.
+      qb.andWhere(
+        `NOT EXISTS (SELECT 1 FROM guide_time_off t WHERE t."guideId" = g.id AND CAST(:date AS date) BETWEEN t."startDate" AND t."endDate")
+         AND (NOT EXISTS (SELECT 1 FROM guide_weekly_hours h WHERE h."guideId" = g.id)
+              OR EXISTS (SELECT 1 FROM guide_weekly_hours h WHERE h."guideId" = g.id AND h.weekday = EXTRACT(DOW FROM CAST(:date AS date))))`,
+        { date: q.date },
+      );
       qb.andWhere(
         `NOT EXISTS (SELECT 1 FROM bookings b WHERE b."guideId" = g.id
-                     AND b.status IN (:...busy) AND (b."startAt" AT TIME ZONE 'UTC')::date = :date)`,
+                     AND b.status IN (:...busy) AND CAST(b."startAt" AT TIME ZONE 'UTC' AS date) = CAST(:date AS date))`,
         { busy: [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS], date: q.date },
       );
     }
@@ -202,13 +213,25 @@ export class GuidesService {
       .getExists();
     if (taken) throw new ForbiddenException('This license number is already registered to another guide');
 
+    let documentKey: string | null = null;
+    if (dto.licenseDocumentKey) {
+      // Only files this guide uploaded through license-upload are accepted.
+      if (!dto.licenseDocumentKey.startsWith(`licenses/${guide.id}/`)) {
+        throw new DomainError('INVALID_DOCUMENT', 'Upload the license scan with /guides/me/license-upload first');
+      }
+      if (!(await this.storage.stat(dto.licenseDocumentKey))) {
+        throw new DomainError('DOCUMENT_NOT_UPLOADED', 'The license scan has not finished uploading');
+      }
+      documentKey = dto.licenseDocumentKey;
+    }
+
     const check = await this.kyc.checkLicense({
       guideId: guide.id,
       fullName: guide.user.fullName,
       licenseNumber: dto.licenseNumber,
       licenseCountryCode: country.code,
       licenseExpiresAt: dto.licenseExpiresAt,
-      documentUrl: dto.licenseDocumentUrl ?? null,
+      documentUrl: documentKey ? await this.storage.createDownloadUrl(documentKey, 3600) : (dto.licenseDocumentUrl ?? null),
     });
 
     const from = guide.verificationStatus;
@@ -219,7 +242,8 @@ export class GuidesService {
           licenseNumber: dto.licenseNumber,
           licenseCountryId: country.id,
           licenseExpiresAt: dto.licenseExpiresAt,
-          licenseDocumentUrl: dto.licenseDocumentUrl ?? null,
+          licenseDocumentUrl: documentKey ? null : (dto.licenseDocumentUrl ?? null),
+          licenseDocumentKey: documentKey,
           verificationStatus: GuideVerificationStatus.PENDING,
           submittedAt: new Date(),
           rejectionReason: null,
@@ -237,6 +261,13 @@ export class GuidesService {
       });
     });
     return this.getByUserId(userId);
+  }
+
+  /** Signed URL for the app to PUT the license scan to private storage. */
+  async createLicenseUpload(userId: string, dto: LicenseUploadDto) {
+    const guide = await this.getByUserId(userId);
+    const key = `licenses/${guide.id}/${randomUUID()}.${LICENSE_CONTENT_TYPES[dto.contentType]}`;
+    return this.storage.createUpload({ key, contentType: dto.contentType, sizeBytes: dto.sizeBytes });
   }
 
   async dashboard(userId: string) {

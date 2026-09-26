@@ -10,6 +10,7 @@ import { Paginated } from '../common/pagination';
 import { Payment } from '../payments/payment.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { Dispute } from './dispute.entity';
+import { BookingNotifier } from '../notifications/booking-notifier';
 import { assertCanOpenDispute, resolutionRefundPercent } from './dispute.rules';
 import { DisputeListQuery, OpenDisputeDto, ResolveDisputeDto } from './dto';
 
@@ -20,6 +21,7 @@ export class DisputesService {
     private readonly config: ConfigService,
     private readonly bookings: BookingsService,
     private readonly payments: PaymentsService,
+    private readonly notify: BookingNotifier,
   ) {}
 
   async open(user: AuthUser, bookingId: string, dto: OpenDisputeDto) {
@@ -43,6 +45,9 @@ export class DisputesService {
         tx.getRepository(Dispute).create({ bookingId, openedById: user.id, reason: dto.reason, description: dto.description }),
       );
       await this.payments.freeze(bookingId, tx);
+      return dispute;
+    }).then(async (dispute) => {
+      await this.notify.disputeOpened(bookingId, user.id);
       return dispute;
     });
   }
@@ -70,6 +75,15 @@ export class DisputesService {
     return { items, total, page: q.page, limit: q.limit };
   }
 
+  async detail(id: string) {
+    const dispute = await this.db.getRepository(Dispute).findOne({
+      where: { id },
+      relations: { booking: { payment: true, tourist: true, guide: { user: true }, package: { city: true } } },
+    });
+    if (!dispute) throw new NotFoundException('Dispute not found');
+    return dispute;
+  }
+
   async resolve(adminId: string, id: string, dto: ResolveDisputeDto) {
     const dispute = await this.db.getRepository(Dispute).findOne({ where: { id }, relations: { booking: true } });
     if (!dispute) throw new NotFoundException('Dispute not found');
@@ -89,6 +103,7 @@ export class DisputesService {
         resolutionNote: dto.note ?? null,
       },
     );
+    await this.notify.disputeResolved(dispute.bookingId, refundPercent);
     return this.db.getRepository(Dispute).findOne({ where: { id }, relations: { booking: { payment: true } } });
   }
 }

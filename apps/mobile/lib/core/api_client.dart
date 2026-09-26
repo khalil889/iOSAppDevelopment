@@ -53,9 +53,27 @@ class ApiClient {
         () => _http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? {})),
       );
 
+  Future<dynamic> put(String path, [Object? body]) => _send(
+        () => _http.put(_uri(path), headers: _headers, body: jsonEncode(body ?? {})),
+      );
+
   Future<dynamic> patch(String path, [Object? body]) => _send(
         () => _http.patch(_uri(path), headers: _headers, body: jsonEncode(body ?? {})),
       );
+
+  /// Uploads raw bytes to a signed storage URL (S3/R2 or the API's local
+  /// storage). No bearer token: the URL itself carries the authorisation.
+  Future<void> uploadBytes(String url, List<int> bytes, Map<String, String> headers) async {
+    final http.Response res;
+    try {
+      res = await _http.put(Uri.parse(url), headers: headers, body: bytes).timeout(const Duration(minutes: 2));
+    } catch (e) {
+      throw ApiException(0, 'Upload failed. Check your connection and try again.');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException(res.statusCode, 'Upload was rejected (${res.statusCode}). Please try again.');
+    }
+  }
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     final http.Response res;

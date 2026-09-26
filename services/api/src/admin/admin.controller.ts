@@ -1,7 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { DataSource } from 'typeorm';
-import { SosAlert } from '../bookings/sos-alert.entity';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
@@ -9,7 +7,8 @@ import { DisputesService } from '../disputes/disputes.service';
 import { DisputeListQuery, ResolveDisputeDto } from '../disputes/dto';
 import { PaymentsService } from '../payments/payments.service';
 import { AdminGuidesService } from './admin-guides.service';
-import { ApproveGuideDto, RejectGuideDto, VerificationQueueQuery } from './dto';
+import { AdminSosService } from './admin-sos.service';
+import { AcknowledgeSosDto, ApproveGuideDto, RejectGuideDto, SosListQuery, VerificationQueueQuery } from './dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -20,7 +19,7 @@ export class AdminController {
     private readonly guides: AdminGuidesService,
     private readonly disputes: DisputesService,
     private readonly payments: PaymentsService,
-    private readonly db: DataSource,
+    private readonly sosAlerts: AdminSosService,
   ) {}
 
   // ---- Guide verification --------------------------------------------------
@@ -69,9 +68,25 @@ export class AdminController {
     return this.disputes.resolve(admin.id, id, dto);
   }
 
+  @Get('disputes/:id')
+  dispute(@Param('id', ParseUUIDPipe) id: string) {
+    return this.disputes.detail(id);
+  }
+
   @Get('sos')
-  sos() {
-    return this.db.getRepository(SosAlert).find({ relations: { booking: true }, order: { createdAt: 'DESC' }, take: 100 });
+  sos(@Query() q: SosListQuery) {
+    return this.sosAlerts.list(q.status);
+  }
+
+  @Get('sos/counts')
+  sosCounts() {
+    return this.sosAlerts.counts();
+  }
+
+  @HttpCode(200)
+  @Post('sos/:id/acknowledge')
+  acknowledgeSos(@CurrentUser() admin: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AcknowledgeSosDto) {
+    return this.sosAlerts.acknowledge(admin.id, id, dto.note);
   }
 
   /** Manually trigger the escrow release job (normally runs every 10 min). */

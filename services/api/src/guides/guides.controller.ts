@@ -4,7 +4,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums';
-import { GuideSearchQuery, SubmitApplicationDto, UpdateGuideProfileDto } from './dto';
+import { GuideSearchQuery, LicenseUploadDto, SubmitApplicationDto, UpdateGuideProfileDto } from './dto';
 import { GuidesService } from './guides.service';
 
 @ApiTags('guides')
@@ -31,6 +31,14 @@ export class GuidesController {
   @Patch('me')
   update(@CurrentUser() user: AuthUser, @Body() dto: UpdateGuideProfileDto) {
     return this.guides.updateProfile(user.id, dto);
+  }
+
+  /** Step 1 of submitting a license scan: get a signed upload URL, then PUT the file to it. */
+  @ApiBearerAuth()
+  @Roles(UserRole.GUIDE)
+  @Post('me/license-upload')
+  licenseUpload(@CurrentUser() user: AuthUser, @Body() dto: LicenseUploadDto) {
+    return this.guides.createLicenseUpload(user.id, dto);
   }
 
   @ApiBearerAuth()

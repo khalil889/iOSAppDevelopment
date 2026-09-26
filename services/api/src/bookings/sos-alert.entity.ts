@@ -28,6 +28,13 @@ export class SosAlert {
   @Column({ type: 'timestamptz', nullable: true })
   acknowledgedAt: Date | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  acknowledgedById: string | null;
+
+  /** What ops did about it (called the tourist, sent help, false alarm, ...). */
+  @Column({ type: 'text', nullable: true })
+  resolutionNote: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

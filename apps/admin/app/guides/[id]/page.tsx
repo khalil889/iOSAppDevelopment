@@ -84,9 +84,20 @@ function Detail() {
             </dd>
             <dt>Document</dt>
             <dd>
-              {guide.licenseDocumentUrl ? (
+              {guide.licenseDocumentDownloadUrl ? (
+                <button
+                  className="btn small"
+                  onClick={async () => {
+                    // Signed links expire after 5 minutes; fetch a fresh one on click.
+                    const fresh = await adminApi.guide(guide.id);
+                    window.open(fresh.licenseDocumentDownloadUrl ?? undefined, '_blank', 'noopener');
+                  }}
+                >
+                  View uploaded scan ↗
+                </button>
+              ) : guide.licenseDocumentUrl ? (
                 <a href={guide.licenseDocumentUrl} target="_blank" rel="noreferrer">
-                  Open scan ↗
+                  Open linked scan ↗
                 </a>
               ) : (
                 <span className="muted">not provided</span>

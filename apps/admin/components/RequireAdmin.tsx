@@ -2,13 +2,14 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
-import { adminApi, auth } from '@/lib/api';
+import { adminApi, auth, opsApi } from '@/lib/api';
 
 /** Client-side gate: redirects to /login unless the stored token belongs to an admin. */
 export function RequireAdmin({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [name, setName] = useState<string | null>(null);
+  const [openSos, setOpenSos] = useState(0);
 
   useEffect(() => {
     if (!auth.token) {
@@ -20,6 +21,8 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
       .then((u) => {
         if (u.role !== 'ADMIN') throw new Error('not admin');
         setName(u.fullName);
+        // Badge only: a failure here must not sign the admin out.
+        opsApi.sosCounts().then((c) => setOpenSos(c.open)).catch(() => undefined);
       })
       .catch(() => {
         auth.clear();
@@ -38,6 +41,12 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
         <nav>
           <a href="/guides" className={pathname.startsWith('/guides') ? 'active' : ''}>
             Guide verification
+          </a>
+          <a href="/disputes" className={pathname.startsWith('/disputes') ? 'active' : ''}>
+            Disputes
+          </a>
+          <a href="/sos" className={pathname.startsWith('/sos') ? 'active' : ''}>
+            SOS {openSos > 0 && <span className="pill-alert">{openSos}</span>}
           </a>
         </nav>
         <div className="spacer" />

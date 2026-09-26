@@ -81,6 +81,20 @@ class Repository {
 
   Future<GuideProfile> guideProfile(String id) async => GuideProfile.fromJson(await api.get('/guides/$id'));
 
+  // ---- Availability -------------------------------------------------------
+  /// Free start times for [packageId] on a local calendar [date] (YYYY-MM-DD).
+  Future<DaySlots> slots(String packageId, String date) async =>
+      DaySlots.fromJson(await api.get('/availability/slots', query: {'packageId': packageId, 'date': date}));
+
+  Future<GuideAvailability> myAvailability() async =>
+      GuideAvailability.fromJson(await api.get('/guides/me/availability'));
+
+  Future<GuideAvailability> saveAvailability(List<WeeklyWindow> hours, List<TimeOffRange> timeOff) async =>
+      GuideAvailability.fromJson(await api.put('/guides/me/availability', {
+        'weeklyHours': hours.map((w) => w.toJson()).toList(),
+        'timeOff': timeOff.map((t) => t.toJson()).toList(),
+      }));
+
   // ---- Bookings -----------------------------------------------------------
   Map<String, dynamic> _bookingBody(String packageId, DateTime startAt, int groupSize, String? notes) => {
         'packageId': packageId,
@@ -144,18 +158,36 @@ class Repository {
   // ---- Guide --------------------------------------------------------------
   Future<GuideDashboard> dashboard() async => GuideDashboard.fromJson(await api.get('/guides/me/dashboard'));
 
+  /// Uploads a license scan to private storage and returns its storage key.
+  Future<String> uploadLicense(List<int> bytes, String contentType) async {
+    final signed = await api.post('/guides/me/license-upload', {'contentType': contentType, 'sizeBytes': bytes.length});
+    final headers = Map<String, String>.from(signed['headers'] as Map);
+    await api.uploadBytes(signed['uploadUrl'] as String, bytes, headers);
+    return signed['key'] as String;
+  }
+
   Future<void> submitLicense({
     required String licenseNumber,
     required String countryId,
     required String expiresAt,
-    String? documentUrl,
+    String? documentKey,
   }) =>
       api.post('/guides/me/application', {
         'licenseNumber': licenseNumber,
         'licenseCountryId': countryId,
         'licenseExpiresAt': expiresAt,
-        if (documentUrl != null && documentUrl.isNotEmpty) 'licenseDocumentUrl': documentUrl,
+        if (documentKey != null) 'licenseDocumentKey': documentKey,
       });
+
+  // ---- Notifications ------------------------------------------------------
+  Future<void> registerDevice(String token, String platform) =>
+      api.post('/me/devices', {'token': token, 'platform': platform});
+
+  Future<void> unregisterDevice(String token) => api.post('/me/devices/unregister', {'token': token});
+
+  Future<Inbox> inbox() async => Inbox.fromJson(await api.get('/me/notifications', query: {'limit': 50}));
+
+  Future<void> markAllRead() => api.post('/me/notifications/read', {});
 
   // ---- Assistant ----------------------------------------------------------
   Future<ChatMessage> chat(List<ChatMessage> history) async {

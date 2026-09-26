@@ -25,6 +25,11 @@ void main() {
     expect(formatDuration(210), '3h 30m');
   });
 
+  test('addMinutesToClock', () {
+    expect(addMinutesToClock('09:30', 210), '13:00');
+    expect(addMinutesToClock('22:00', 180), '01:00 +1d');
+  });
+
   test('titleCase', () {
     expect(titleCase('IN_PROGRESS'), 'In Progress');
     expect(titleCase('HERITAGE'), 'Heritage');

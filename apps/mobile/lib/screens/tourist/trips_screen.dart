@@ -10,6 +10,7 @@ import '../../widgets/common.dart';
 import '../auth/require_sign_in.dart';
 import '../shared/live_tour_screen.dart';
 import 'review_screen.dart';
+import '../shared/push_listener.dart';
 
 /// Tourist's bookings: live now, upcoming and past.
 class TripsScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _TripsScreenState extends State<TripsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('My trips'), actions: [
         if (signedIn) IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
+        const NotificationBell(),
       ]),
       body: !signedIn
           ? EmptyView(

@@ -49,6 +49,8 @@ jobs:
           npm run migration:run -w services/api
       - name: Seed
         run: npm run seed -w services/api
+      - name: End-to-end tests (seeded database)
+        run: npm run test:e2e -w services/api
 
   admin:
     name: Admin (Next.js)

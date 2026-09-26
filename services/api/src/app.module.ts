@@ -9,6 +9,7 @@ import { join } from 'path';
 import { AdminModule } from './admin/admin.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { AuthModule } from './auth/auth.module';
+import { AvailabilityModule } from './availability/availability.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -18,6 +19,7 @@ import { DisputesModule } from './disputes/disputes.module';
 import { GeoModule } from './geo/geo.module';
 import { GuidesModule } from './guides/guides.module';
 import { HealthController } from './health.controller';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PackagesModule } from './packages/packages.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ProvidersModule } from './providers/providers.module';
@@ -49,11 +51,13 @@ import { UsersModule } from './users/users.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ScheduleModule.forRoot(),
     ProvidersModule,
+    NotificationsModule,
     UsersModule,
     AuthModule,
     GeoModule,
     GuidesModule,
     PackagesModule,
+    AvailabilityModule,
     PaymentsModule,
     BookingsModule,
     ReviewsModule,

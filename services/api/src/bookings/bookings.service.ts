@@ -5,6 +5,7 @@ import { geoPoint } from '../common/base.entity';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { BookingStatus, DisputeStatus, UserRole } from '../common/enums';
 import { DomainError } from '../common/errors/domain-error';
+import { AvailabilityService } from '../availability/availability.service';
 import { Dispute } from '../disputes/dispute.entity';
 import { Guide } from '../guides/guide.entity';
 import { GuidesService } from '../guides/guides.service';
@@ -21,11 +22,14 @@ import {
   bookingEnd,
   cancellationRefundPercent,
   isParticipant,
+  isTourist,
   nextStatus,
   quotePrice,
 } from './booking.rules';
 import { BookingListQuery, CancelBookingDto, CreateBookingDto, SosDto } from './dto';
 import { SosAlert } from './sos-alert.entity';
+import { SosNotifier } from './sos-notifier';
+import { BookingNotifier } from '../notifications/booking-notifier';
 
 @Injectable()
 export class BookingsService {
@@ -36,6 +40,9 @@ export class BookingsService {
     private readonly config: ConfigService,
     private readonly guides: GuidesService,
     private readonly payments: PaymentsService,
+    private readonly availability: AvailabilityService,
+    private readonly sosNotifier: SosNotifier,
+    private readonly notify: BookingNotifier,
   ) {}
 
   private get feePercent() {
@@ -59,17 +66,19 @@ export class BookingsService {
   }
 
   private async validateCandidate(user: AuthUser, dto: CreateBookingDto) {
-    const pkg = await this.db.getRepository(TourPackage).findOne({ where: { id: dto.packageId }, relations: { guide: true } });
+    const pkg = await this.db.getRepository(TourPackage).findOne({ where: { id: dto.packageId }, relations: { guide: true, city: true } });
     if (!pkg) throw new NotFoundException('Package not found');
     const tourist = await this.db.getRepository(User).findOneByOrFail({ id: user.id });
+    const startAt = new Date(dto.startAt);
     assertCanCreateBooking({
       tourist,
       guide: pkg.guide,
       pkg,
-      startAt: new Date(dto.startAt),
+      startAt,
       groupSize: dto.groupSize,
       now: new Date(),
     });
+    await this.availability.assertBookable(pkg.guideId, pkg.city.timezone, startAt, bookingEnd(startAt, pkg.durationMinutes));
     return { pkg, tourist };
   }
 
@@ -151,9 +160,11 @@ export class BookingsService {
     if (booking.paymentDueAt && booking.paymentDueAt <= now) {
       await this.settleLatePayment(booking, now);
     }
-    await this.db
+    const res = await this.db
       .getRepository(Booking)
       .update({ id: booking.id, status: BookingStatus.PENDING_PAYMENT }, { status: BookingStatus.CONFIRMED, paymentDueAt: null });
+    // Only the call that actually flipped the status notifies (app + webhook can race).
+    if (res.affected) await this.notify.confirmed(booking.id);
   }
 
   /** Payment arrived after the hold lapsed: keep it if the slot is still free, otherwise refund. */
@@ -183,6 +194,7 @@ export class BookingsService {
     const booking = await this.load(id);
     const to = nextStatus(booking, 'start', await this.actor(user), new Date());
     await this.db.getRepository(Booking).update({ id }, { status: to, startedAt: new Date() });
+    await this.notify.started(id);
     return this.get(user, id);
   }
 
@@ -194,6 +206,7 @@ export class BookingsService {
       await tx.getRepository(Booking).update({ id }, { status: to, completedAt: now });
       await this.payments.scheduleRelease(id, now, tx);
     });
+    await this.notify.completed(id);
     return this.get(user, id);
   }
 
@@ -209,6 +222,7 @@ export class BookingsService {
       { status: to, cancelledAt: now, cancelledById: user.id, cancellationReason: dto.reason ?? null, paymentDueAt: null },
     );
     await this.payments.settle(booking, refundPercent, `Cancelled: ${dto.reason ?? 'no reason given'}`);
+    await this.notify.cancelled(id, isTourist(booking, actor) ? 'tourist' : actor.role === UserRole.ADMIN ? 'admin' : 'guide', refundPercent);
     return { booking: await this.get(user, id), refundPercent };
   }
 
@@ -227,9 +241,33 @@ export class BookingsService {
       location: dto.lat !== undefined && dto.lng !== undefined ? geoPoint(dto.lat, dto.lng) : null,
       message: dto.message ?? null,
     });
-    // Phase 1: log only. Hook a paging/notification provider here.
     this.logger.warn(`SOS ${alert.id} on booking ${id} by ${user.id} at ${JSON.stringify(alert.location?.coordinates ?? null)}`);
-    return { id: alert.id, createdAt: alert.createdAt, status: 'RECEIVED', message: 'Our safety team has been alerted.' };
+
+    const full = await this.db.getRepository(Booking).findOneOrFail({
+      where: { id },
+      relations: { tourist: true, guide: { user: true }, package: { city: true } },
+    });
+    await this.notify.sosRaised(id, isTourist(booking, actor) ? 'tourist' : 'guide');
+    const paged = await this.sosNotifier.notifyOps({
+      alertId: alert.id,
+      raisedBy: isTourist(booking, actor) ? 'tourist' : 'guide',
+      touristName: full.tourist.fullName,
+      touristPhone: full.tourist.phone,
+      guideName: full.guide.user.fullName,
+      guidePhone: full.guide.user.phone,
+      packageTitle: full.package.title,
+      city: full.package.city?.name ?? null,
+      lat: dto.lat,
+      lng: dto.lng,
+      message: dto.message,
+    });
+    return {
+      id: alert.id,
+      createdAt: alert.createdAt,
+      status: 'RECEIVED',
+      opsPaged: paged.sent > 0,
+      message: 'Our safety team has been alerted.',
+    };
   }
 
   // ------------------------------------------------------------- queries

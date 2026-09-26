@@ -5,7 +5,20 @@ export interface AppConfig {
   jwt: { secret: string; expiresIn: string };
   corsOrigins: string[];
   otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean };
-  providers: { sms: string; payment: string; kyc: string; ai: string };
+  providers: { sms: string; payment: string; kyc: string; ai: string; storage: string; push: string };
+  firebase: { serviceAccount: string };
+  publicApiUrl: string;
+  /** E.164 numbers texted on every SOS alert. */
+  opsAlertPhones: string[];
+  storage: { uploadDir: string };
+  s3: {
+    bucket: string;
+    region: string;
+    endpoint: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    forcePathStyle: boolean;
+  };
   moyasar: {
     apiUrl: string;
     secretKey: string;
@@ -54,6 +67,20 @@ export default (): AppConfig => ({
     payment: process.env.PAYMENT_PROVIDER ?? 'stub',
     kyc: process.env.KYC_PROVIDER ?? 'stub',
     ai: process.env.AI_PROVIDER ?? 'stub',
+    storage: process.env.STORAGE_PROVIDER ?? 'local',
+    push: process.env.PUSH_PROVIDER ?? 'stub',
+  },
+  firebase: { serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT ?? '' },
+  publicApiUrl: (process.env.PUBLIC_API_URL ?? `http://localhost:${int(process.env.PORT, 3000)}`).replace(/\/$/, ''),
+  opsAlertPhones: (process.env.OPS_ALERT_PHONES ?? '').split(',').map((p) => p.trim()).filter(Boolean),
+  storage: { uploadDir: process.env.UPLOAD_DIR ?? 'uploads' },
+  s3: {
+    bucket: process.env.S3_BUCKET ?? '',
+    region: process.env.S3_REGION ?? 'auto',
+    endpoint: process.env.S3_ENDPOINT ?? '',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+    forcePathStyle: bool(process.env.S3_FORCE_PATH_STYLE, false),
   },
   moyasar: {
     apiUrl: process.env.MOYASAR_API_URL ?? 'https://api.moyasar.com/v1',
