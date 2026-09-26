@@ -10,6 +10,8 @@ import '../../widgets/common.dart';
 import '../shared/live_tour_screen.dart';
 import '../shared/push_listener.dart';
 import 'availability_screen.dart';
+import 'earnings_screen.dart';
+import 'identity_card.dart';
 import 'license_form_screen.dart';
 import 'my_tours_screen.dart';
 
@@ -21,11 +23,41 @@ class GuideDashboardScreen extends StatefulWidget {
   State<GuideDashboardScreen> createState() => _GuideDashboardScreenState();
 }
 
-class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
+class _GuideDashboardScreenState extends State<GuideDashboardScreen> with WidgetsBindingObserver {
   late Future<GuideDashboard> _data = _load();
 
   Future<GuideDashboard> _load() => context.read<Repository>().dashboard();
-  void _reload() => setState(() => _data = _load());
+  void _reload() {
+    if (!mounted) return;
+    final next = _load();
+    setState(() {
+      _data = next;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Back from the identity provider's page (or anywhere else): the result
+  /// may have arrived by webhook meanwhile.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _reload();
+  }
+
+  Future<void> _openEarnings() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const EarningsScreen()));
+    _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +73,7 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
       body: FutureBuilder<GuideDashboard>(
         future: _data,
         builder: (context, snap) {
-          if (snap.hasError) return ErrorView(error: snap.error!, onRetry: _reload);
+          if (snap.hasError && !snap.hasData) return ErrorView(error: snap.error!, onRetry: _reload);
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           return RefreshIndicator(onRefresh: () async => _reload(), child: _body(snap.data!));
         },
@@ -58,6 +90,10 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         _verificationCard(d),
+        if (d.identityStatus != null && !(d.isApproved && d.identityStatus == IdentityStatus.approved)) ...[
+          const SizedBox(height: 6),
+          IdentityCard(status: d.identityStatus!, comment: d.identityComment, onChanged: _reload),
+        ],
         const SizedBox(height: 12),
         Row(children: [
           Expanded(
@@ -72,28 +108,41 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
         const SizedBox(height: 12),
         for (final e in d.earnings)
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(l10n.dashboardPaidOut, style: t.labelMedium),
-                    Text(formatMoney(e.releasedMinor, e.currency), style: t.titleLarge),
-                  ]),
-                ),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(l10n.dashboardInEscrow, style: t.labelMedium),
-                    Text(formatMoney(e.heldMinor, e.currency), style: t.titleLarge),
-                  ]),
-                ),
-                Tooltip(
-                  message: l10n.dashboardEscrowInfo,
-                  child: Icon(Icons.info_outline, color: Theme.of(context).hintColor),
-                ),
-              ]),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: _openEarnings,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(l10n.dashboardPaidOut, style: t.labelMedium),
+                      Text(formatMoney(e.releasedMinor, e.currency), style: t.titleLarge),
+                    ]),
+                  ),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(l10n.dashboardInEscrow, style: t.labelMedium),
+                      Text(formatMoney(e.heldMinor, e.currency), style: t.titleLarge),
+                    ]),
+                  ),
+                  Tooltip(
+                    message: l10n.dashboardEscrowInfo,
+                    child: Icon(Icons.info_outline, color: Theme.of(context).hintColor),
+                  ),
+                ]),
+              ),
             ),
           ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: Text(l10n.dashboardEarningsTile),
+            subtitle: Text(l10n.dashboardEarningsTileSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _openEarnings,
+          ),
+        ),
         Card(
           child: ListTile(
             leading: const Icon(Icons.tour_outlined),
@@ -124,7 +173,8 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: b.status == BookingStatus.inProgress ? Colors.red : null,
-                child: Icon(b.status == BookingStatus.inProgress ? Icons.podcasts : Icons.event, color: b.status == BookingStatus.inProgress ? Colors.white : null),
+                child: Icon(b.status == BookingStatus.inProgress ? Icons.podcasts : Icons.event,
+                    color: b.status == BookingStatus.inProgress ? Colors.white : null),
               ),
               title: Text(b.packageTitle),
               subtitle: Text(
@@ -132,7 +182,8 @@ class _GuideDashboardScreenState extends State<GuideDashboardScreen> {
                 '${l10n.dashboardPayout(formatMoney(b.guidePayoutMinor, b.currency))}',
               ),
               isThreeLine: true,
-              trailing: b.status == BookingStatus.inProgress ? StatusChip(l10n.liveBadge, color: Colors.red) : const Icon(Icons.chevron_right),
+              trailing:
+                  b.status == BookingStatus.inProgress ? StatusChip(l10n.liveBadge, color: Colors.red) : const Icon(Icons.chevron_right),
               onTap: () async {
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => LiveTourScreen(bookingId: b.id)));
                 _reload();

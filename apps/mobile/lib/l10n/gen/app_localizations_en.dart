@@ -1353,4 +1353,222 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toursSaved => 'Tour updated.';
+
+  @override
+  String get dashboardEarningsTile => 'Earnings & payouts';
+
+  @override
+  String get dashboardEarningsTileSubtitle =>
+      'Balance, bank account and payout history';
+
+  @override
+  String get earningsTitle => 'Earnings & payouts';
+
+  @override
+  String get earningsOwedTitle => 'Waiting to be paid out';
+
+  @override
+  String get earningsOwedInfo =>
+      'Money released after your tours is sent to your bank account in the next payout.';
+
+  @override
+  String get earningsOwedEmpty =>
+      'Nothing is waiting to be paid out right now.';
+
+  @override
+  String earningsFromPayments(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'From $count tour payments',
+      one: 'From 1 tour payment',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get earningsAccountTitle => 'Bank account for payouts';
+
+  @override
+  String get earningsAccountMissing =>
+      'Add your bank account so we can send you your earnings.';
+
+  @override
+  String get earningsAccountAdd => 'Add bank account';
+
+  @override
+  String get earningsAccountChange => 'Change bank account';
+
+  @override
+  String get earningsAccountHolder => 'Account holder';
+
+  @override
+  String get earningsAccountIban => 'IBAN';
+
+  @override
+  String get earningsAccountBank => 'Bank';
+
+  @override
+  String get earningsHistoryTitle => 'Payout history';
+
+  @override
+  String get earningsHistoryEmpty => 'No payouts yet.';
+
+  @override
+  String earningsPaidOn(String date) {
+    return 'Paid on $date';
+  }
+
+  @override
+  String earningsCreatedOn(String date) {
+    return 'Started on $date';
+  }
+
+  @override
+  String earningsPayoutTo(String iban) {
+    return 'To $iban';
+  }
+
+  @override
+  String earningsReference(String reference) {
+    return 'Reference: $reference';
+  }
+
+  @override
+  String get payoutStatusPending => 'Processing';
+
+  @override
+  String get payoutStatusPaid => 'Paid';
+
+  @override
+  String get payoutStatusFailed => 'Failed';
+
+  @override
+  String get payoutAccountTitle => 'Bank account';
+
+  @override
+  String get payoutAccountIntro =>
+      'We send your earnings by bank transfer to this account. It must be in your name.';
+
+  @override
+  String get payoutAccountSecurity =>
+      'Your bank details are stored encrypted. After saving, only the last 4 digits of the IBAN are shown.';
+
+  @override
+  String payoutAccountCurrent(String iban) {
+    return 'Current account: $iban. Enter the full IBAN again to change it.';
+  }
+
+  @override
+  String get payoutHolderLabel => 'Account holder name';
+
+  @override
+  String get payoutHolderError =>
+      'Enter the name on the account (at least 3 characters)';
+
+  @override
+  String get payoutIbanLabel => 'IBAN';
+
+  @override
+  String get payoutIbanRequired => 'Enter your IBAN';
+
+  @override
+  String get payoutIbanFormat =>
+      'An IBAN starts with a two-letter country code and two digits, e.g. SA03';
+
+  @override
+  String payoutIbanLength(String country, int length) {
+    return 'A $country IBAN has $length characters';
+  }
+
+  @override
+  String get payoutIbanLengthGeneric =>
+      'An IBAN has between 15 and 34 characters';
+
+  @override
+  String get payoutIbanChecksum =>
+      'This IBAN isn\'t valid. Check it for typos.';
+
+  @override
+  String get payoutBankLabel => 'Bank name (optional)';
+
+  @override
+  String get payoutBankError => 'Enter between 2 and 80 characters';
+
+  @override
+  String get payoutSave => 'Save bank account';
+
+  @override
+  String get payoutSaving => 'Saving…';
+
+  @override
+  String get payoutSaved =>
+      'Bank account saved. For your security, payouts to new bank details start after 24 hours.';
+
+  @override
+  String get identityTitle => 'Identity verification';
+
+  @override
+  String get identityExplain =>
+      'Scan your ID document and take a selfie. It takes about 3 minutes and is required before your account can be approved.';
+
+  @override
+  String get identityStatusNotStarted => 'Not started';
+
+  @override
+  String get identityStatusPending => 'In review';
+
+  @override
+  String get identityStatusApproved => 'Verified';
+
+  @override
+  String get identityStatusRetry => 'Needs another try';
+
+  @override
+  String get identityStatusRejected => 'Rejected';
+
+  @override
+  String get identityPendingBody =>
+      'We\'re checking your documents. This usually takes a few minutes.';
+
+  @override
+  String get identityApprovedBody => 'Your identity has been verified.';
+
+  @override
+  String get identityRetryBody =>
+      'The check couldn\'t be completed. Please try again.';
+
+  @override
+  String get identityRejectedBody =>
+      'We couldn\'t verify your identity. Please contact support.';
+
+  @override
+  String identityReviewerNote(String comment) {
+    return 'Note: $comment';
+  }
+
+  @override
+  String get identityStart => 'Verify my identity';
+
+  @override
+  String get identityTryAgain => 'Try again';
+
+  @override
+  String get identityStarting => 'Opening…';
+
+  @override
+  String get identityOpenFailed => 'Couldn\'t open the verification page.';
+
+  @override
+  String get identityReturnHint =>
+      'Finish the steps in the browser, then come back here to see the result.';
+
+  @override
+  String get payoutAccountHoldNote =>
+      'For your security, payouts to new bank details start after 24 hours, and we notify you by SMS whenever they change.';
+
+  @override
+  String earningsAccountHeld(String date) {
+    return 'For your security, payouts to these details start after $date.';
+  }
 }

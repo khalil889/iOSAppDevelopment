@@ -1386,4 +1386,224 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get toursSaved => 'حُدِّثت الجولة.';
+
+  @override
+  String get dashboardEarningsTile => 'الأرباح والتحويلات';
+
+  @override
+  String get dashboardEarningsTileSubtitle =>
+      'الرصيد والحساب البنكي وسجل التحويلات';
+
+  @override
+  String get earningsTitle => 'الأرباح والتحويلات';
+
+  @override
+  String get earningsOwedTitle => 'بانتظار التحويل';
+
+  @override
+  String get earningsOwedInfo =>
+      'تُحوَّل المبالغ المُفرَج عنها بعد جولاتك إلى حسابك البنكي في دفعة التحويل التالية.';
+
+  @override
+  String get earningsOwedEmpty => 'لا توجد مبالغ بانتظار التحويل حاليًا.';
+
+  @override
+  String earningsFromPayments(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'من $count دفعة',
+      many: 'من $count دفعةً',
+      few: 'من $count دفعات جولات',
+      two: 'من دفعتَي جولتين',
+      one: 'من دفعة جولة واحدة',
+      zero: 'لا توجد مدفوعات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get earningsAccountTitle => 'الحساب البنكي للتحويلات';
+
+  @override
+  String get earningsAccountMissing =>
+      'أضف حسابك البنكي لنتمكّن من تحويل أرباحك إليك.';
+
+  @override
+  String get earningsAccountAdd => 'إضافة حساب بنكي';
+
+  @override
+  String get earningsAccountChange => 'تغيير الحساب البنكي';
+
+  @override
+  String get earningsAccountHolder => 'صاحب الحساب';
+
+  @override
+  String get earningsAccountIban => 'رقم الآيبان';
+
+  @override
+  String get earningsAccountBank => 'البنك';
+
+  @override
+  String get earningsHistoryTitle => 'سجل التحويلات';
+
+  @override
+  String get earningsHistoryEmpty => 'لا توجد تحويلات بعد.';
+
+  @override
+  String earningsPaidOn(String date) {
+    return 'حُوِّل في $date';
+  }
+
+  @override
+  String earningsCreatedOn(String date) {
+    return 'بدأ في $date';
+  }
+
+  @override
+  String earningsPayoutTo(String iban) {
+    return 'إلى $iban';
+  }
+
+  @override
+  String earningsReference(String reference) {
+    return 'المرجع: $reference';
+  }
+
+  @override
+  String get payoutStatusPending => 'قيد التنفيذ';
+
+  @override
+  String get payoutStatusPaid => 'تم التحويل';
+
+  @override
+  String get payoutStatusFailed => 'تعذّر التحويل';
+
+  @override
+  String get payoutAccountTitle => 'الحساب البنكي';
+
+  @override
+  String get payoutAccountIntro =>
+      'نحوّل أرباحك إلى هذا الحساب بتحويل بنكي، ويجب أن يكون الحساب باسمك.';
+
+  @override
+  String get payoutAccountSecurity =>
+      'تُحفَظ بياناتك البنكية مشفّرة، وبعد الحفظ لا تظهر إلا آخر 4 أرقام من الآيبان.';
+
+  @override
+  String payoutAccountCurrent(String iban) {
+    return 'الحساب الحالي: $iban. أدخل رقم الآيبان كاملًا لتغييره.';
+  }
+
+  @override
+  String get payoutHolderLabel => 'اسم صاحب الحساب';
+
+  @override
+  String get payoutHolderError =>
+      'أدخل الاسم المسجّل على الحساب (3 أحرف على الأقل)';
+
+  @override
+  String get payoutIbanLabel => 'رقم الآيبان (IBAN)';
+
+  @override
+  String get payoutIbanRequired => 'أدخل رقم الآيبان';
+
+  @override
+  String get payoutIbanFormat =>
+      'يبدأ رقم الآيبان برمز البلد المكوّن من حرفين ثم رقمين، مثل SA03';
+
+  @override
+  String payoutIbanLength(String country, int length) {
+    return 'يتكوّن رقم الآيبان الذي يبدأ بـ $country من $length خانة';
+  }
+
+  @override
+  String get payoutIbanLengthGeneric => 'يتكوّن رقم الآيبان من 15 إلى 34 خانة';
+
+  @override
+  String get payoutIbanChecksum =>
+      'رقم الآيبان غير صحيح. تحقّق من عدم وجود خطأ في الكتابة.';
+
+  @override
+  String get payoutBankLabel => 'اسم البنك (اختياري)';
+
+  @override
+  String get payoutBankError => 'أدخل من حرفين إلى 80 حرفًا';
+
+  @override
+  String get payoutSave => 'حفظ الحساب البنكي';
+
+  @override
+  String get payoutSaving => 'جارٍ الحفظ…';
+
+  @override
+  String get payoutSaved =>
+      'تم حفظ الحساب البنكي. حرصًا على أمانك، تبدأ التحويلات إلى البيانات البنكية الجديدة بعد 24 ساعة.';
+
+  @override
+  String get identityTitle => 'التحقق من الهوية';
+
+  @override
+  String get identityExplain =>
+      'صوّر وثيقة هويتك والتقط صورة ذاتية (سيلفي). يستغرق ذلك نحو 3 دقائق، وهو شرط لاعتماد حسابك.';
+
+  @override
+  String get identityStatusNotStarted => 'لم يبدأ بعد';
+
+  @override
+  String get identityStatusPending => 'قيد المراجعة';
+
+  @override
+  String get identityStatusApproved => 'تم التحقق';
+
+  @override
+  String get identityStatusRetry => 'تلزم إعادة المحاولة';
+
+  @override
+  String get identityStatusRejected => 'مرفوض';
+
+  @override
+  String get identityPendingBody =>
+      'نراجع مستنداتك الآن، ويستغرق ذلك عادةً بضع دقائق.';
+
+  @override
+  String get identityApprovedBody => 'تم التحقق من هويتك بنجاح.';
+
+  @override
+  String get identityRetryBody =>
+      'تعذّر إكمال التحقق. يُرجى المحاولة مرة أخرى.';
+
+  @override
+  String get identityRejectedBody =>
+      'تعذّر علينا التحقق من هويتك. يُرجى التواصل مع الدعم.';
+
+  @override
+  String identityReviewerNote(String comment) {
+    return 'ملاحظة: $comment';
+  }
+
+  @override
+  String get identityStart => 'التحقق من هويتي';
+
+  @override
+  String get identityTryAgain => 'إعادة المحاولة';
+
+  @override
+  String get identityStarting => 'جارٍ الفتح…';
+
+  @override
+  String get identityOpenFailed => 'تعذّر فتح صفحة التحقق.';
+
+  @override
+  String get identityReturnHint =>
+      'أكمل الخطوات في المتصفح، ثم عُد إلى هنا لمعرفة النتيجة.';
+
+  @override
+  String get payoutAccountHoldNote =>
+      'حرصًا على أمانك، تبدأ التحويلات إلى البيانات البنكية الجديدة بعد 24 ساعة، ونُبلغك برسالة نصية عند أي تغيير عليها.';
+
+  @override
+  String earningsAccountHeld(String date) {
+    return 'حرصًا على أمانك، تبدأ التحويلات إلى هذه البيانات بعد $date.';
+  }
 }

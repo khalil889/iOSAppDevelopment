@@ -772,5 +772,130 @@
   "toursSave": "Save changes",
   "toursSaving": "Saving…",
   "toursCreated": "Tour created.",
-  "toursSaved": "Tour updated."
+  "toursSaved": "Tour updated.",
+  "dashboardEarningsTile": "Earnings & payouts",
+  "dashboardEarningsTileSubtitle": "Balance, bank account and payout history",
+  "earningsTitle": "Earnings & payouts",
+  "earningsOwedTitle": "Waiting to be paid out",
+  "earningsOwedInfo": "Money released after your tours is sent to your bank account in the next payout.",
+  "earningsOwedEmpty": "Nothing is waiting to be paid out right now.",
+  "earningsFromPayments": "{count, plural, =1{From 1 tour payment} other{From {count} tour payments}}",
+  "@earningsFromPayments": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "earningsAccountTitle": "Bank account for payouts",
+  "earningsAccountMissing": "Add your bank account so we can send you your earnings.",
+  "earningsAccountAdd": "Add bank account",
+  "earningsAccountChange": "Change bank account",
+  "earningsAccountHolder": "Account holder",
+  "earningsAccountIban": "IBAN",
+  "earningsAccountBank": "Bank",
+  "earningsHistoryTitle": "Payout history",
+  "earningsHistoryEmpty": "No payouts yet.",
+  "earningsPaidOn": "Paid on {date}",
+  "@earningsPaidOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "earningsCreatedOn": "Started on {date}",
+  "@earningsCreatedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "earningsPayoutTo": "To {iban}",
+  "@earningsPayoutTo": {
+    "placeholders": {
+      "iban": {
+        "type": "String"
+      }
+    }
+  },
+  "earningsReference": "Reference: {reference}",
+  "@earningsReference": {
+    "placeholders": {
+      "reference": {
+        "type": "String"
+      }
+    }
+  },
+  "payoutStatusPending": "Processing",
+  "payoutStatusPaid": "Paid",
+  "payoutStatusFailed": "Failed",
+  "payoutAccountTitle": "Bank account",
+  "payoutAccountIntro": "We send your earnings by bank transfer to this account. It must be in your name.",
+  "payoutAccountSecurity": "Your bank details are stored encrypted. After saving, only the last 4 digits of the IBAN are shown.",
+  "payoutAccountCurrent": "Current account: {iban}. Enter the full IBAN again to change it.",
+  "@payoutAccountCurrent": {
+    "placeholders": {
+      "iban": {
+        "type": "String"
+      }
+    }
+  },
+  "payoutHolderLabel": "Account holder name",
+  "payoutHolderError": "Enter the name on the account (at least 3 characters)",
+  "payoutIbanLabel": "IBAN",
+  "payoutIbanRequired": "Enter your IBAN",
+  "payoutIbanFormat": "An IBAN starts with a two-letter country code and two digits, e.g. SA03",
+  "payoutIbanLength": "A {country} IBAN has {length} characters",
+  "@payoutIbanLength": {
+    "placeholders": {
+      "country": {
+        "type": "String"
+      },
+      "length": {
+        "type": "int"
+      }
+    }
+  },
+  "payoutIbanLengthGeneric": "An IBAN has between 15 and 34 characters",
+  "payoutIbanChecksum": "This IBAN isn't valid. Check it for typos.",
+  "payoutBankLabel": "Bank name (optional)",
+  "payoutBankError": "Enter between 2 and 80 characters",
+  "payoutSave": "Save bank account",
+  "payoutSaving": "Saving…",
+  "payoutSaved": "Bank account saved. For your security, payouts to new bank details start after 24 hours.",
+  "identityTitle": "Identity verification",
+  "identityExplain": "Scan your ID document and take a selfie. It takes about 3 minutes and is required before your account can be approved.",
+  "identityStatusNotStarted": "Not started",
+  "identityStatusPending": "In review",
+  "identityStatusApproved": "Verified",
+  "identityStatusRetry": "Needs another try",
+  "identityStatusRejected": "Rejected",
+  "identityPendingBody": "We're checking your documents. This usually takes a few minutes.",
+  "identityApprovedBody": "Your identity has been verified.",
+  "identityRetryBody": "The check couldn't be completed. Please try again.",
+  "identityRejectedBody": "We couldn't verify your identity. Please contact support.",
+  "identityReviewerNote": "Note: {comment}",
+  "@identityReviewerNote": {
+    "placeholders": {
+      "comment": {
+        "type": "String"
+      }
+    }
+  },
+  "identityStart": "Verify my identity",
+  "identityTryAgain": "Try again",
+  "identityStarting": "Opening…",
+  "identityOpenFailed": "Couldn't open the verification page.",
+  "identityReturnHint": "Finish the steps in the browser, then come back here to see the result.",
+  "payoutAccountHoldNote": "For your security, payouts to new bank details start after 24 hours, and we notify you by SMS whenever they change.",
+  "earningsAccountHeld": "For your security, payouts to these details start after {date}.",
+  "@earningsAccountHeld": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  }
 }

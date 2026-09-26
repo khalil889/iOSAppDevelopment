@@ -9,16 +9,33 @@ import '../../l10n/l10n.dart';
 import '../../models/models.dart';
 import '../../services/push_service.dart';
 import '../../services/repository.dart';
+import '../guide/earnings_screen.dart';
 import '../tourist/review_screen.dart';
 import 'live_tour_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
 final appMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
+/// Whether tapping a notification with [data] leads somewhere.
+bool hasNotificationTarget(Map<String, String> data) =>
+    data['bookingId'] != null || data['screen'] == 'earnings' || data['screen'] == 'dashboard';
+
 /// Opens the screen a notification points at (from a push tap or the inbox).
 Future<void> openNotificationTarget(BuildContext context, Map<String, String> data) async {
   final bookingId = data['bookingId'];
   final nav = appNavigatorKey.currentState ?? Navigator.of(context);
+  final screen = data['screen'];
+  if (screen == 'earnings' || screen == 'dashboard') {
+    // Guide-only targets (payouts, identity check); the dashboard is the
+    // guide's home tab, so going back to the root shows it (refreshed on resume).
+    if (!context.read<Session>().isGuide) return;
+    if (screen == 'earnings') {
+      nav.push(MaterialPageRoute(builder: (_) => const EarningsScreen()));
+    } else {
+      nav.popUntil((r) => r.isFirst);
+    }
+    return;
+  }
   if (bookingId == null) return;
   if (data['screen'] == 'review') {
     try {
@@ -67,7 +84,7 @@ class _PushListenerState extends State<PushListener> {
     }
     appMessengerKey.currentState?.showSnackBar(SnackBar(
       content: Text(e.body.isEmpty ? e.title : '${e.title}\n${e.body}'),
-      action: e.data['bookingId'] == null
+      action: !hasNotificationTarget(e.data)
           ? null
           : SnackBarAction(label: context.l10n.notifOpen, onPressed: () => openNotificationTarget(context, e.data)),
     ));
@@ -132,6 +149,10 @@ class _InboxScreenState extends State<InboxScreen> {
         'GUIDE_APPROVED' => Icons.verified,
         'GUIDE_REJECTED' => Icons.error_outline,
         'DISPUTE_OPENED' || 'DISPUTE_RESOLVED' => Icons.gavel,
+        'IDENTITY_VERIFIED' => Icons.verified_user,
+        'IDENTITY_NEEDS_ACTION' => Icons.badge_outlined,
+        'PAYOUT_SENT' => Icons.payments_outlined,
+        'PAYOUT_ACCOUNT_CHANGED' => Icons.account_balance_outlined,
         _ => Icons.event_available,
       };
 
@@ -181,7 +202,7 @@ class _InboxScreenState extends State<InboxScreen> {
                             ],
                           ],
                         ),
-                        onTap: n.bookingId == null ? null : () => openNotificationTarget(context, n.data),
+                        onTap: hasNotificationTarget(n.data) ? () => openNotificationTarget(context, n.data) : null,
                       );
                     },
                   ),

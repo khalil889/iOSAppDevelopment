@@ -2407,6 +2407,360 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tour updated.'**
   String get toursSaved;
+
+  /// No description provided for @dashboardEarningsTile.
+  ///
+  /// In en, this message translates to:
+  /// **'Earnings & payouts'**
+  String get dashboardEarningsTile;
+
+  /// No description provided for @dashboardEarningsTileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance, bank account and payout history'**
+  String get dashboardEarningsTileSubtitle;
+
+  /// No description provided for @earningsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Earnings & payouts'**
+  String get earningsTitle;
+
+  /// No description provided for @earningsOwedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting to be paid out'**
+  String get earningsOwedTitle;
+
+  /// No description provided for @earningsOwedInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Money released after your tours is sent to your bank account in the next payout.'**
+  String get earningsOwedInfo;
+
+  /// No description provided for @earningsOwedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is waiting to be paid out right now.'**
+  String get earningsOwedEmpty;
+
+  /// No description provided for @earningsFromPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{From 1 tour payment} other{From {count} tour payments}}'**
+  String earningsFromPayments(int count);
+
+  /// No description provided for @earningsAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank account for payouts'**
+  String get earningsAccountTitle;
+
+  /// No description provided for @earningsAccountMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your bank account so we can send you your earnings.'**
+  String get earningsAccountMissing;
+
+  /// No description provided for @earningsAccountAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add bank account'**
+  String get earningsAccountAdd;
+
+  /// No description provided for @earningsAccountChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change bank account'**
+  String get earningsAccountChange;
+
+  /// No description provided for @earningsAccountHolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Account holder'**
+  String get earningsAccountHolder;
+
+  /// No description provided for @earningsAccountIban.
+  ///
+  /// In en, this message translates to:
+  /// **'IBAN'**
+  String get earningsAccountIban;
+
+  /// No description provided for @earningsAccountBank.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank'**
+  String get earningsAccountBank;
+
+  /// No description provided for @earningsHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payout history'**
+  String get earningsHistoryTitle;
+
+  /// No description provided for @earningsHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No payouts yet.'**
+  String get earningsHistoryEmpty;
+
+  /// No description provided for @earningsPaidOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid on {date}'**
+  String earningsPaidOn(String date);
+
+  /// No description provided for @earningsCreatedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Started on {date}'**
+  String earningsCreatedOn(String date);
+
+  /// No description provided for @earningsPayoutTo.
+  ///
+  /// In en, this message translates to:
+  /// **'To {iban}'**
+  String earningsPayoutTo(String iban);
+
+  /// No description provided for @earningsReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference: {reference}'**
+  String earningsReference(String reference);
+
+  /// No description provided for @payoutStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get payoutStatusPending;
+
+  /// No description provided for @payoutStatusPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get payoutStatusPaid;
+
+  /// No description provided for @payoutStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get payoutStatusFailed;
+
+  /// No description provided for @payoutAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank account'**
+  String get payoutAccountTitle;
+
+  /// No description provided for @payoutAccountIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'We send your earnings by bank transfer to this account. It must be in your name.'**
+  String get payoutAccountIntro;
+
+  /// No description provided for @payoutAccountSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Your bank details are stored encrypted. After saving, only the last 4 digits of the IBAN are shown.'**
+  String get payoutAccountSecurity;
+
+  /// No description provided for @payoutAccountCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current account: {iban}. Enter the full IBAN again to change it.'**
+  String payoutAccountCurrent(String iban);
+
+  /// No description provided for @payoutHolderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account holder name'**
+  String get payoutHolderLabel;
+
+  /// No description provided for @payoutHolderError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the name on the account (at least 3 characters)'**
+  String get payoutHolderError;
+
+  /// No description provided for @payoutIbanLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'IBAN'**
+  String get payoutIbanLabel;
+
+  /// No description provided for @payoutIbanRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your IBAN'**
+  String get payoutIbanRequired;
+
+  /// No description provided for @payoutIbanFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'An IBAN starts with a two-letter country code and two digits, e.g. SA03'**
+  String get payoutIbanFormat;
+
+  /// No description provided for @payoutIbanLength.
+  ///
+  /// In en, this message translates to:
+  /// **'A {country} IBAN has {length} characters'**
+  String payoutIbanLength(String country, int length);
+
+  /// No description provided for @payoutIbanLengthGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'An IBAN has between 15 and 34 characters'**
+  String get payoutIbanLengthGeneric;
+
+  /// No description provided for @payoutIbanChecksum.
+  ///
+  /// In en, this message translates to:
+  /// **'This IBAN isn\'t valid. Check it for typos.'**
+  String get payoutIbanChecksum;
+
+  /// No description provided for @payoutBankLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank name (optional)'**
+  String get payoutBankLabel;
+
+  /// No description provided for @payoutBankError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter between 2 and 80 characters'**
+  String get payoutBankError;
+
+  /// No description provided for @payoutSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save bank account'**
+  String get payoutSave;
+
+  /// No description provided for @payoutSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get payoutSaving;
+
+  /// No description provided for @payoutSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank account saved. For your security, payouts to new bank details start after 24 hours.'**
+  String get payoutSaved;
+
+  /// No description provided for @identityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity verification'**
+  String get identityTitle;
+
+  /// No description provided for @identityExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan your ID document and take a selfie. It takes about 3 minutes and is required before your account can be approved.'**
+  String get identityExplain;
+
+  /// No description provided for @identityStatusNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Not started'**
+  String get identityStatusNotStarted;
+
+  /// No description provided for @identityStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'In review'**
+  String get identityStatusPending;
+
+  /// No description provided for @identityStatusApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get identityStatusApproved;
+
+  /// No description provided for @identityStatusRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs another try'**
+  String get identityStatusRetry;
+
+  /// No description provided for @identityStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get identityStatusRejected;
+
+  /// No description provided for @identityPendingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'re checking your documents. This usually takes a few minutes.'**
+  String get identityPendingBody;
+
+  /// No description provided for @identityApprovedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your identity has been verified.'**
+  String get identityApprovedBody;
+
+  /// No description provided for @identityRetryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The check couldn\'t be completed. Please try again.'**
+  String get identityRetryBody;
+
+  /// No description provided for @identityRejectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t verify your identity. Please contact support.'**
+  String get identityRejectedBody;
+
+  /// No description provided for @identityReviewerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note: {comment}'**
+  String identityReviewerNote(String comment);
+
+  /// No description provided for @identityStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify my identity'**
+  String get identityStart;
+
+  /// No description provided for @identityTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get identityTryAgain;
+
+  /// No description provided for @identityStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening…'**
+  String get identityStarting;
+
+  /// No description provided for @identityOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the verification page.'**
+  String get identityOpenFailed;
+
+  /// No description provided for @identityReturnHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish the steps in the browser, then come back here to see the result.'**
+  String get identityReturnHint;
+
+  /// No description provided for @payoutAccountHoldNote.
+  ///
+  /// In en, this message translates to:
+  /// **'For your security, payouts to new bank details start after 24 hours, and we notify you by SMS whenever they change.'**
+  String get payoutAccountHoldNote;
+
+  /// No description provided for @earningsAccountHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'For your security, payouts to these details start after {date}.'**
+  String earningsAccountHeld(String date);
 }
 
 class _AppLocalizationsDelegate

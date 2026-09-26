@@ -395,10 +395,18 @@ class GuideDashboard {
     required this.earnings,
     required this.upcoming,
     this.rejectionReason,
+    this.identityStatus,
+    this.identityComment,
   });
 
   final String name, verificationStatus;
   final String? rejectionReason;
+
+  /// Null when the API didn't say (the card is then hidden).
+  final IdentityStatus? identityStatus;
+
+  /// The identity provider's note for the guide, e.g. why a retry is needed.
+  final String? identityComment;
   final double ratingAvg;
   final int ratingCount;
   final Map<String, int> stats;
@@ -408,9 +416,15 @@ class GuideDashboard {
   bool get isApproved => verificationStatus == 'APPROVED';
   bool get canSubmitLicense => verificationStatus == 'DRAFT' || verificationStatus == 'REJECTED';
 
-  factory GuideDashboard.fromJson(Map<String, dynamic> j) {
+  /// [profile] is `GET /guides/me`, used for the identity fields when the
+  /// dashboard payload doesn't include them.
+  factory GuideDashboard.fromJson(Map<String, dynamic> j, {Map<String, dynamic>? profile}) {
     final g = j['guide'] as Map<String, dynamic>;
+    final idSource = g.containsKey('identityStatus') ? g : profile;
+    final review = idSource?['identityReview'];
     return GuideDashboard(
+      identityStatus: idSource?['identityStatus'] == null ? null : identityStatusFromApi(idSource!['identityStatus']),
+      identityComment: review is Map ? review['comment'] as String? : null,
       name: g['name'] ?? '',
       verificationStatus: g['verificationStatus'] ?? 'DRAFT',
       rejectionReason: g['rejectionReason'],
@@ -421,6 +435,106 @@ class GuideDashboard {
       upcoming: (j['upcoming'] as List? ?? []).map((b) => DashboardBooking.fromJson(b)).toList(),
     );
   }
+}
+
+// ---- Identity verification & payouts ----------------------------------------
+
+enum IdentityStatus { notStarted, pending, approved, retry, rejected }
+
+IdentityStatus identityStatusFromApi(dynamic s) => switch (s) {
+      'PENDING' => IdentityStatus.pending,
+      'APPROVED' => IdentityStatus.approved,
+      'RETRY' => IdentityStatus.retry,
+      'REJECTED' => IdentityStatus.rejected,
+      _ => IdentityStatus.notStarted,
+    };
+
+/// Result of `POST /guides/me/identity`: open [url] when present.
+class IdentityCheck {
+  IdentityCheck({required this.status, this.url});
+  final IdentityStatus status;
+  final String? url;
+
+  factory IdentityCheck.fromJson(Map<String, dynamic> j) =>
+      IdentityCheck(status: identityStatusFromApi(j['status']), url: j['url'] as String?);
+}
+
+/// The guide's bank account; the API only ever returns the masked IBAN.
+class PayoutAccount {
+  PayoutAccount({required this.holderName, required this.ibanMasked, this.bankName, this.updatedAt});
+  final String holderName, ibanMasked;
+  final String? bankName;
+  final DateTime? updatedAt;
+
+  factory PayoutAccount.fromJson(Map<String, dynamic> j) => PayoutAccount(
+        holderName: j['holderName'] ?? '',
+        ibanMasked: j['ibanMasked'] ?? '',
+        bankName: j['bankName'],
+        updatedAt: _date(j['updatedAt']),
+      );
+}
+
+/// Released money not yet included in a payout, per currency.
+class OwedBalance {
+  OwedBalance({required this.currency, required this.amountMinor, required this.paymentCount});
+  final String currency;
+  final int amountMinor, paymentCount;
+
+  factory OwedBalance.fromJson(Map<String, dynamic> j) =>
+      OwedBalance(currency: j['currency'] ?? 'SAR', amountMinor: _int(j['amountMinor']), paymentCount: _int(j['paymentCount']));
+}
+
+enum PayoutStatus { pending, paid, failed }
+
+class Payout {
+  Payout({
+    required this.id,
+    required this.amountMinor,
+    required this.currency,
+    required this.paymentCount,
+    required this.status,
+    required this.ibanMasked,
+    required this.createdAt,
+    this.note,
+    this.paidAt,
+  });
+
+  final String id, currency, ibanMasked;
+  final int amountMinor, paymentCount;
+  final PayoutStatus status;
+  final String? note;
+  final DateTime createdAt;
+  final DateTime? paidAt;
+
+  factory Payout.fromJson(Map<String, dynamic> j) => Payout(
+        id: j['id'],
+        amountMinor: _int(j['amountMinor']),
+        currency: j['currency'] ?? 'SAR',
+        paymentCount: _int(j['paymentCount']),
+        status: switch (j['status']) {
+          'PAID' => PayoutStatus.paid,
+          'FAILED' => PayoutStatus.failed,
+          _ => PayoutStatus.pending,
+        },
+        ibanMasked: j['ibanMasked'] ?? '',
+        note: j['note'],
+        paidAt: _date(j['paidAt']),
+        createdAt: _date(j['createdAt']) ?? DateTime.now(),
+      );
+}
+
+/// `GET /guides/me/earnings`.
+class GuideEarnings {
+  GuideEarnings({this.account, required this.owed, required this.payouts});
+  final PayoutAccount? account;
+  final List<OwedBalance> owed;
+  final List<Payout> payouts;
+
+  factory GuideEarnings.fromJson(Map<String, dynamic> j) => GuideEarnings(
+        account: j['account'] is Map<String, dynamic> ? PayoutAccount.fromJson(j['account']) : null,
+        owed: (j['owed'] as List? ?? []).map((e) => OwedBalance.fromJson(e)).toList(),
+        payouts: (j['payouts'] as List? ?? []).map((e) => Payout.fromJson(e)).toList(),
+      );
 }
 
 class PaymentClientConfig {

@@ -162,7 +162,33 @@ class Repository {
       api.post('/bookings/$bookingId/disputes', {'reason': reason, 'description': description});
 
   // ---- Guide --------------------------------------------------------------
-  Future<GuideDashboard> dashboard() async => GuideDashboard.fromJson(await api.get('/guides/me/dashboard'));
+  /// The dashboard plus the identity-check fields from `/guides/me` (the
+  /// dashboard payload doesn't carry them). A failing `/guides/me` only hides
+  /// the identity card; it doesn't break the dashboard.
+  Future<GuideDashboard> dashboard() async {
+    final results = await Future.wait([
+      api.get('/guides/me/dashboard'),
+      api.get('/guides/me').then<dynamic>((j) => j, onError: (Object _) => null),
+    ]);
+    final profile = results[1];
+    return GuideDashboard.fromJson(results[0], profile: profile is Map<String, dynamic> ? profile : null);
+  }
+
+  /// Starts (or resumes) the ID + selfie check. Open [IdentityCheck.url] when set;
+  /// the result then arrives by webhook, so re-read the dashboard afterwards.
+  Future<IdentityCheck> startIdentityCheck() async => IdentityCheck.fromJson(await api.post('/guides/me/identity'));
+
+  // ---- Earnings & payouts ---------------------------------------------------
+  Future<GuideEarnings> earnings() async => GuideEarnings.fromJson(await api.get('/guides/me/earnings'));
+
+  /// Saves the bank account; [iban] should already be normalized (no spaces,
+  /// upper case). Returns the stored account with the IBAN masked.
+  Future<PayoutAccount> savePayoutAccount({required String holderName, required String iban, String? bankName}) async =>
+      PayoutAccount.fromJson(await api.put('/guides/me/payout-account', {
+        'holderName': holderName,
+        'iban': iban,
+        if (bankName != null && bankName.isNotEmpty) 'bankName': bankName,
+      }));
 
   /// Uploads a license scan to private storage and returns its storage key.
   Future<String> uploadLicense(List<int> bytes, String contentType) async {
