@@ -2,7 +2,11 @@ export interface AppConfig {
   port: number;
   databaseUrl: string;
   runMigrations: boolean;
-  jwt: { secret: string; expiresIn: string };
+  jwt: { secret: string; accessTtlSeconds: number; refreshTtlDays: number };
+  isProduction: boolean;
+  trustProxy: boolean;
+  logFormat: 'json' | 'text';
+  loginLockout: { maxAttempts: number; minutes: number };
   corsOrigins: string[];
   otp: { ttlSeconds: number; maxAttempts: number; devEcho: boolean };
   providers: { sms: string; payment: string; kyc: string; ai: string; storage: string; push: string };
@@ -51,7 +55,15 @@ export default (): AppConfig => ({
   runMigrations: bool(process.env.DB_RUN_MIGRATIONS, true),
   jwt: {
     secret: process.env.JWT_SECRET ?? 'dev-only-secret',
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+    accessTtlSeconds: int(process.env.JWT_ACCESS_TTL_SECONDS, 900),
+    refreshTtlDays: int(process.env.JWT_REFRESH_TTL_DAYS, 30),
+  },
+  isProduction: process.env.NODE_ENV === 'production',
+  trustProxy: bool(process.env.TRUST_PROXY, false),
+  logFormat: process.env.LOG_FORMAT === 'json' ? 'json' : 'text',
+  loginLockout: {
+    maxAttempts: int(process.env.LOGIN_MAX_ATTEMPTS, 5),
+    minutes: int(process.env.LOGIN_LOCKOUT_MINUTES, 15),
   },
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:3001')
     .split(',')
@@ -60,7 +72,8 @@ export default (): AppConfig => ({
   otp: {
     ttlSeconds: int(process.env.OTP_TTL_SECONDS, 300),
     maxAttempts: int(process.env.OTP_MAX_ATTEMPTS, 5),
-    devEcho: bool(process.env.OTP_DEV_ECHO, false),
+    // Never echo codes in production, whatever the env says.
+    devEcho: process.env.NODE_ENV !== 'production' && bool(process.env.OTP_DEV_ECHO, false),
   },
   providers: {
     sms: process.env.SMS_PROVIDER ?? 'stub',

@@ -1,3 +1,4 @@
+import { AuthSession } from '../auth/auth-session.entity';
 import { OtpCode } from '../auth/otp-code.entity';
 import { GuideTimeOff, GuideWeeklyHours } from '../availability/availability.entities';
 import { Booking } from '../bookings/booking.entity';
@@ -32,6 +33,7 @@ export const ENTITIES = [
   GuideTimeOff,
   DeviceToken,
   Notification,
+  AuthSession,
 ];
 
 export {
@@ -52,4 +54,5 @@ export {
   GuideTimeOff,
   DeviceToken,
   Notification,
+  AuthSession,
 };

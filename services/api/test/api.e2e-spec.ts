@@ -158,3 +158,38 @@ describe('notifications', () => {
     expect(inbox.body.items.some((n: { type: string }) => n.type === 'REVIEW_REMINDER')).toBe(true);
   });
 });
+
+describe('sessions', () => {
+  const signIn = (email: string, password = 'Password123!') =>
+    call<{ accessToken: string; refreshToken: string; expiresIn: number; statusCode?: number }>('POST', '/auth/login', { email, password });
+
+  it('rotates refresh tokens and revokes the family when an old one is replayed', async () => {
+    const first = (await signIn('mona@guides.test')).body;
+    expect(first.expiresIn).toBe(900);
+    const second = await call('POST', '/auth/refresh', { refreshToken: first.refreshToken });
+    expect(second.status).toBe(200);
+    expect(second.body.refreshToken).not.toBe(first.refreshToken);
+
+    expect((await call('POST', '/auth/refresh', { refreshToken: first.refreshToken })).status).toBe(401); // replay
+    expect((await call('POST', '/auth/refresh', { refreshToken: second.body.refreshToken })).status).toBe(401); // family revoked
+  });
+
+  it('logout-all ends every session of the user', async () => {
+    const a = (await signIn('yousef@guides.test')).body;
+    const b = (await signIn('yousef@guides.test')).body;
+    expect((await call('POST', '/auth/logout-all', {}, a.accessToken)).body.sessions).toBeGreaterThanOrEqual(2);
+    expect((await call('POST', '/auth/refresh', { refreshToken: b.refreshToken })).status).toBe(401);
+  });
+
+  it('locks password login after repeated failures; a phone code clears it', async () => {
+    for (let i = 0; i < 5; i++) expect((await signIn('omar@guides.test', 'wrong-password')).status).toBe(401);
+    expect((await signIn('omar@guides.test')).status).toBe(429);
+
+    const sent = await call<{ devCode?: string }>('POST', '/auth/otp/request', { phone: '+966500000103', purpose: 'LOGIN' });
+    if (sent.body.devCode) {
+      const verified = await call('POST', '/auth/otp/verify', { phone: '+966500000103', purpose: 'LOGIN', code: sent.body.devCode });
+      expect(verified.status).toBe(200);
+      expect((await signIn('omar@guides.test')).status).toBe(200);
+    }
+  });
+});

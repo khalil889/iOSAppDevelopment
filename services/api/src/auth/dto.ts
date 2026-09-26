@@ -48,3 +48,8 @@ export class VerifyOtpDto extends RequestOtpDto {
   @ApiProperty({ example: '123456' }) @Matches(/^\d{6}$/)
   code: string;
 }
+
+export class RefreshDto {
+  @ApiProperty() @IsString() @Length(20, 200)
+  refreshToken: string;
+}

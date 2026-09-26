@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -8,7 +10,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
@@ -20,6 +21,10 @@ import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { LoginDto, RegisterDto, RequestOtpDto, VerifyOtpDto } from './dto';
 import { OtpCode } from './otp-code.entity';
+import { TokenService } from './token.service';
+
+// bcrypt hash of a random string, used to equalise timing for unknown emails.
+const DUMMY_HASH = '$2b$10$Jp4gfizzsukZ/h3Du5XsMukIUfO4SYLLqt6T6rSKGOT.SHZr.10tu';
 
 /** Minimum gap between OTP sends to the same phone. */
 const OTP_RESEND_SECONDS = 30;
@@ -30,14 +35,14 @@ export class AuthService {
 
   constructor(
     private readonly users: UsersService,
-    private readonly jwt: JwtService,
+    private readonly tokens: TokenService,
     private readonly config: ConfigService,
     private readonly db: DataSource,
     @InjectRepository(OtpCode) private readonly otps: Repository<OtpCode>,
     @Inject(SMS_SENDER) private readonly sms: SmsSender,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, userAgent?: string) {
     const clash = await this.db.getRepository(User).findOne({
       where: [{ email: dto.email }, { phone: dto.phone }],
     });
@@ -63,15 +68,50 @@ export class AuthService {
     });
 
     const otp = await this.requestOtp({ phone: dto.phone, purpose: OtpPurpose.VERIFY_PHONE });
-    return { ...(await this.issueToken(user.id)), ...otp };
+    return { ...(await this.issueToken(user.id, userAgent)), ...otp };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, userAgent?: string) {
+    const invalid = new UnauthorizedException('Invalid email or password');
     const user = await this.users.findByEmailWithPassword(dto.email);
-    const ok = user?.passwordHash && (await bcrypt.compare(dto.password, user.passwordHash));
-    if (!user || !ok) throw new UnauthorizedException('Invalid email or password');
+    if (!user?.passwordHash) {
+      // Same cost as a real check so response time doesn't reveal which emails exist.
+      await bcrypt.compare(dto.password, DUMMY_HASH);
+      throw invalid;
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
+      throw new HttpException(`Too many failed attempts. Try again in ${minutes} minute(s) or sign in with a phone code.`, HttpStatus.TOO_MANY_REQUESTS);
+    }
+    if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
+      const { maxAttempts, minutes } = this.config.get<{ maxAttempts: number; minutes: number }>('loginLockout')!;
+      const failed = (user.failedLoginCount ?? 0) + 1;
+      await this.db.getRepository(User).update(
+        { id: user.id },
+        failed >= maxAttempts
+          ? { failedLoginCount: 0, lockedUntil: new Date(Date.now() + minutes * 60_000) }
+          : { failedLoginCount: failed },
+      );
+      throw invalid;
+    }
     if (!user.isActive) throw new UnauthorizedException('Account disabled');
-    return this.issueToken(user.id);
+    if (user.failedLoginCount || user.lockedUntil) {
+      await this.db.getRepository(User).update({ id: user.id }, { failedLoginCount: 0, lockedUntil: null });
+    }
+    return this.issueToken(user.id, userAgent);
+  }
+
+  async refresh(refreshToken: string, userAgent?: string) {
+    const { userId, ...tokens } = await this.tokens.refresh(refreshToken, userAgent);
+    return { ...tokens, user: await this.users.getById(userId) };
+  }
+
+  logout(refreshToken: string) {
+    return this.tokens.revoke(refreshToken).then(() => ({ signedOut: true }));
+  }
+
+  logoutAll(userId: string) {
+    return this.tokens.revokeAll(userId).then((sessions) => ({ signedOut: true, sessions }));
   }
 
   async requestOtp(dto: RequestOtpDto): Promise<{ otpSent: true; devCode?: string }> {
@@ -109,7 +149,7 @@ export class AuthService {
     return devEcho ? { otpSent: true, devCode: code } : { otpSent: true };
   }
 
-  async verifyOtp(dto: VerifyOtpDto) {
+  async verifyOtp(dto: VerifyOtpDto, userAgent?: string) {
     const invalid = new UnauthorizedException('Invalid or expired code');
     const otp = await this.otps.findOne({
       where: { phone: dto.phone, purpose: dto.purpose, consumedAt: IsNull(), expiresAt: MoreThan(new Date()) },
@@ -130,16 +170,18 @@ export class AuthService {
     if (!user.phoneVerifiedAt) {
       await this.db.getRepository(User).update({ id: user.id }, { phoneVerifiedAt: new Date() });
     }
-    return this.issueToken(user.id);
+    // A verified phone code also clears a password lockout.
+    await this.db.getRepository(User).update({ id: user.id }, { failedLoginCount: 0, lockedUntil: null });
+    return this.issueToken(user.id, userAgent);
   }
 
   async me(userId: string) {
     return this.users.getById(userId);
   }
 
-  private async issueToken(userId: string) {
+  private async issueToken(userId: string, userAgent?: string) {
     const user = await this.users.getById(userId);
-    const accessToken = await this.jwt.signAsync({ sub: user.id, role: user.role });
-    return { accessToken, user };
+    if (!user.isActive) throw new UnauthorizedException('Account disabled');
+    return { ...(await this.tokens.issue(user, userAgent)), user };
   }
 }

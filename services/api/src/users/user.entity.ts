@@ -35,6 +35,13 @@ export class User extends BaseEntity {
   @Column({ default: true })
   isActive: boolean;
 
+  /** Consecutive failed password logins; reset on success. */
+  @Column({ type: 'int', default: 0, select: false })
+  failedLoginCount: number;
+
+  @Column({ type: 'timestamptz', nullable: true, select: false })
+  lockedUntil: Date | null;
+
   @OneToOne('Guide', (g: Guide) => g.user)
   guide?: Guide;
 }
