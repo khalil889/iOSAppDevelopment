@@ -53,8 +53,8 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
         <span className="muted small">{name}</span>
         <button
           className="btn ghost small"
-          onClick={() => {
-            auth.clear();
+          onClick={async () => {
+            await adminApi.logout();
             router.replace('/login');
           }}
         >

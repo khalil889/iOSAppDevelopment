@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
-import { adminApi, auth } from '@/lib/api';
+import { adminApi, auth, safeNextPath } from '@/lib/api';
 
 function LoginForm() {
   const router = useRouter();
@@ -19,8 +19,8 @@ function LoginForm() {
     try {
       const res = await adminApi.login(email, password);
       if (res.user.role !== 'ADMIN') throw new Error('This account does not have admin access.');
-      auth.set(res.accessToken);
-      router.replace(params.get('next') || '/guides');
+      auth.set(res.accessToken, res.refreshToken);
+      router.replace(safeNextPath(params.get('next')));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -46,7 +46,9 @@ function LoginForm() {
       <button className="btn primary" disabled={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
-      <p className="muted small">Seeded admin: admin@tourguide.test / Admin123!</p>
+      {process.env.NEXT_PUBLIC_DEMO_HINT === 'true' && (
+        <p className="muted small">Seeded admin: admin@tourguide.test / Admin123!</p>
+      )}
     </form>
   );
 }

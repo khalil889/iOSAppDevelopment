@@ -1,7 +1,8 @@
 'use client';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api';
-const TOKEN_KEY = 'tg_admin_token';
+const ACCESS_KEY = 'tg_admin_access';
+const REFRESH_KEY = 'tg_admin_refresh';
 
 export type VerificationStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 export type KycStatus = 'NOT_STARTED' | 'CLEAR' | 'CONSIDER' | 'FAILED';
@@ -49,19 +50,55 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Tokens live in sessionStorage: they survive a reload but not closing the
+ * tab, and aren't shared with other tabs or kept on disk long-term.
+ */
 export const auth = {
   get token() {
-    return typeof window === 'undefined' ? null : window.localStorage.getItem(TOKEN_KEY);
+    return typeof window === 'undefined' ? null : window.sessionStorage.getItem(ACCESS_KEY);
   },
-  set(token: string) {
-    window.localStorage.setItem(TOKEN_KEY, token);
+  get refreshToken() {
+    return typeof window === 'undefined' ? null : window.sessionStorage.getItem(REFRESH_KEY);
+  },
+  set(accessToken: string, refreshToken: string) {
+    window.sessionStorage.setItem(ACCESS_KEY, accessToken);
+    window.sessionStorage.setItem(REFRESH_KEY, refreshToken);
   },
   clear() {
-    window.localStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(ACCESS_KEY);
+    window.sessionStorage.removeItem(REFRESH_KEY);
+    window.localStorage.removeItem('tg_admin_token'); // pre-refresh-token versions
   },
 };
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+let refreshing: Promise<boolean> | null = null;
+
+/** Single-flight refresh: refresh tokens are single-use. */
+function refreshTokens(): Promise<boolean> {
+  refreshing ??= (async () => {
+    const refreshToken = auth.refreshToken;
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const body = await res.json();
+      auth.set(body.accessToken, body.refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+export async function api<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('content-type', 'application/json');
   if (auth.token) headers.set('authorization', `Bearer ${auth.token}`);
@@ -69,6 +106,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && auth.token && retry && (await refreshTokens())) return api<T>(path, init, false);
     if (res.status === 401) auth.clear();
     const msg = Array.isArray(body.message) ? body.message.join(', ') : body.message ?? res.statusText;
     throw new ApiError(res.status, msg, body.error);
@@ -76,13 +114,25 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+/** Only same-site paths are allowed as post-login redirects. */
+export function safeNextPath(next: string | null): string {
+  return next && /^\/(?![/\\])[\w\-./?=&%]*$/.test(next) ? next : '/guides';
+}
+
 export const adminApi = {
   login: (email: string, password: string) =>
-    api<{ accessToken: string; user: { role: string; fullName: string } }>('/auth/login', {
+    api<{ accessToken: string; refreshToken: string; user: { role: string; fullName: string } }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
   me: () => api<{ id: string; role: string; fullName: string }>('/auth/me'),
+  logout: () => {
+    const refreshToken = auth.refreshToken;
+    auth.clear();
+    return refreshToken
+      ? fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ refreshToken }) }).catch(() => undefined)
+      : Promise.resolve();
+  },
   counts: () => api<Record<VerificationStatus, number>>('/admin/guides/counts'),
   queue: (status: VerificationStatus, page = 1) =>
     api<Paginated<AdminGuide>>(`/admin/guides?status=${status}&page=${page}&limit=20`),
