@@ -10,6 +10,7 @@ import 'package:tourguide_mobile/models/models.dart';
 import 'package:tourguide_mobile/screens/tourist/booking_screen.dart';
 import 'package:tourguide_mobile/services/payment_sheet.dart';
 import 'package:tourguide_mobile/services/repository.dart';
+import 'helpers.dart';
 
 final _guide = GuideSummary.fromJson({'id': 'g1', 'name': 'Noura Al-Qahtani', 'verified': true});
 final _package = TourPackage.fromJson({
@@ -52,7 +53,7 @@ void main() {
 
     await tester.pumpWidget(MultiProvider(
       providers: [Provider.value(value: repo), Provider<PaymentSheet>.value(value: StubPaymentSheet())],
-      child: MaterialApp(home: BookingScreen(guide: _guide, package: _package)),
+      child: localizedApp(BookingScreen(guide: _guide, package: _package)),
     ));
     await tester.pumpAndSettle();
 

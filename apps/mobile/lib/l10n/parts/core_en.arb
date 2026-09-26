@@ -1,0 +1,37 @@
+{
+  "appTitle": "TourGuide",
+  "tabExplore": "Explore",
+  "tabTrips": "Trips",
+  "tabAssistant": "Assistant",
+  "tabAccount": "Account",
+  "tabDashboard": "Dashboard",
+  "cancel": "Cancel",
+  "save": "Save",
+  "retry": "Retry",
+  "close": "Close",
+  "ok": "OK",
+  "somethingWentWrong": "Something went wrong",
+  "errorNetwork": "Cannot reach the server. Check your connection.",
+  "errorUploadFailed": "Upload failed. Check your connection and try again.",
+  "errorUploadRejected": "Upload was rejected ({status}). Please try again.",
+  "@errorUploadRejected": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "errorRequestFailed": "Request failed ({status})",
+  "@errorRequestFailed": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "language": "Language",
+  "languageSystem": "Device language",
+  "languageEnglish": "English",
+  "languageArabic": "العربية",
+  "ratingNew": "New"
+}

@@ -19,6 +19,7 @@ class Repository {
       'password': password,
       'fullName': fullName,
       'phone': phone,
+      'locale': api.language,
       'role': role == UserRole.guide ? 'GUIDE' : 'TOURIST',
     });
     return AuthResult.fromJson(j);
@@ -47,6 +48,9 @@ class Repository {
   }
 
   Future<AppUser> me() async => AppUser.fromJson(await api.get('/auth/me'));
+
+  /// Language for this user's notifications and SMS.
+  Future<void> updateLocale(String locale) => api.patch('/auth/me', {'locale': locale});
 
   // ---- Explore ------------------------------------------------------------
   Future<List<City>> cities() async => (await api.get('/cities') as List).map((c) => City.fromJson(c)).toList();

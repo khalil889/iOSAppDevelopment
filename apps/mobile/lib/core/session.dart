@@ -50,6 +50,8 @@ class Session extends ChangeNotifier {
     await store.write(auth.accessToken, auth.refreshToken);
     notifyListeners();
     push.onSignedIn(repo);
+    // Keep notification/SMS language in step with the app language.
+    if (auth.user.locale != api.language) repo.updateLocale(api.language).catchError((_) {});
   }
 
   Future<void> refreshUser() async {

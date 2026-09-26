@@ -29,7 +29,10 @@ class SecureTokenStore implements TokenStore {
   }
 
   @override
-  Future<void> clear() => _storage.deleteAll();
+  Future<void> clear() async {
+    await _storage.delete(key: _access);
+    await _storage.delete(key: _refresh);
+  }
 }
 
 /// For tests.

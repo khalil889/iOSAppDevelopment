@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/config.dart';
+import '../../core/locale_controller.dart';
 import '../../core/session.dart';
 import '../../models/models.dart';
+import '../../l10n/l10n.dart';
 import '../../widgets/common.dart';
 import '../auth/otp_sheet.dart';
 import '../auth/require_sign_in.dart';
@@ -79,10 +81,52 @@ class AccountScreen extends StatelessWidget {
               },
             ),
           ],
+          const Divider(),
+          const _LanguageTile(),
           const SizedBox(height: 32),
           Text('API: ${AppConfig.apiUrl}', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
+    );
+  }
+}
+
+class _LanguageTile extends StatelessWidget {
+  const _LanguageTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final controller = context.watch<LocaleController>();
+    final choice = controller.override?.languageCode ?? 'system';
+    final labels = {'system': l10n.languageSystem, 'en': l10n.languageEnglish, 'ar': l10n.languageArabic};
+    return ListTile(
+      leading: const Icon(Icons.translate),
+      title: Text(l10n.language),
+      subtitle: Text(labels[choice]!),
+      onTap: () async {
+        final picked = await showDialog<String>(
+          context: context,
+          builder: (ctx) => SimpleDialog(
+            title: Text(l10n.language),
+            children: [
+              RadioGroup<String>(
+                groupValue: choice,
+                onChanged: (v) => Navigator.pop(ctx, v),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final e in labels.entries) RadioListTile<String>(value: e.key, title: Text(e.value)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+        if (picked != null && picked != choice) {
+          await controller.choose(picked == 'system' ? null : Locale(picked));
+        }
+      },
     );
   }
 }

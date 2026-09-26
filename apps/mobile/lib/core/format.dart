@@ -26,11 +26,14 @@ int _pow10(int e) {
   return r;
 }
 
+bool get _arabic => Intl.getCurrentLocale().startsWith('ar');
+
 String formatDuration(int minutes) {
   final h = minutes ~/ 60;
   final m = minutes % 60;
-  if (h == 0) return '${m}m';
-  return m == 0 ? '${h}h' : '${h}h ${m}m';
+  final (hs, ms) = _arabic ? (' س', ' د') : ('h', 'm');
+  if (h == 0) return '$m$ms';
+  return m == 0 ? '$h$hs' : '$h$hs $m$ms';
 }
 
 String formatDateTime(DateTime d) => DateFormat('EEE d MMM, HH:mm').format(d.toLocal());

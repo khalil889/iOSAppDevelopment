@@ -14,6 +14,8 @@ import 'package:tourguide_mobile/models/models.dart';
 import 'package:tourguide_mobile/screens/shared/push_listener.dart';
 import 'package:tourguide_mobile/services/push_service.dart';
 import 'package:tourguide_mobile/services/repository.dart';
+import 'package:tourguide_mobile/l10n/l10n.dart';
+import 'package:tourguide_mobile/main.dart' show localizationsDelegates;
 
 class FakePush implements PushService {
   final controller = StreamController<PushEvent>.broadcast();
@@ -83,6 +85,8 @@ void main() {
       child: MaterialApp(
         navigatorKey: appNavigatorKey,
         scaffoldMessengerKey: appMessengerKey,
+        localizationsDelegates: localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: PushListener(child: Scaffold(appBar: AppBar(actions: const [NotificationBell()]))),
       ),
     ));
@@ -114,6 +118,8 @@ void main() {
       child: MaterialApp(
         navigatorKey: appNavigatorKey,
         scaffoldMessengerKey: appMessengerKey,
+        localizationsDelegates: localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: const PushListener(child: Scaffold(body: SizedBox())),
       ),
     ));

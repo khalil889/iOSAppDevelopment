@@ -15,6 +15,11 @@ class ApiException implements Exception {
 
   bool get isUnauthorized => statusCode == 401;
 
+  /// Client-side failure codes (the app shows translated text for these).
+  static const network = 'NETWORK';
+  static const uploadFailed = 'UPLOAD_FAILED';
+  static const uploadRejected = 'UPLOAD_REJECTED';
+
   @override
   String toString() => message;
 }
@@ -29,6 +34,9 @@ class ApiClient {
   final String _base;
   String? token;
   String? refreshToken;
+
+  /// UI language, sent as Accept-Language so the API translates content.
+  String language = 'en';
 
   /// Called when the session can't be refreshed so the app can sign out.
   void Function()? onUnauthorized;
@@ -49,6 +57,7 @@ class ApiClient {
   Map<String, String> get _headers => {
         'content-type': 'application/json',
         'accept': 'application/json',
+        'accept-language': language,
         if (token != null) 'authorization': 'Bearer $token',
       };
 
@@ -74,10 +83,11 @@ class ApiClient {
     try {
       res = await _http.put(Uri.parse(url), headers: headers, body: bytes).timeout(const Duration(minutes: 2));
     } catch (e) {
-      throw ApiException(0, 'Upload failed. Check your connection and try again.');
+      throw ApiException(0, 'Upload failed. Check your connection and try again.', code: ApiException.uploadFailed);
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw ApiException(res.statusCode, 'Upload was rejected (${res.statusCode}). Please try again.');
+      throw ApiException(res.statusCode, 'Upload was rejected (${res.statusCode}). Please try again.',
+          code: ApiException.uploadRejected);
     }
   }
 
@@ -86,7 +96,7 @@ class ApiClient {
     try {
       res = await request().timeout(const Duration(seconds: 20));
     } catch (e) {
-      throw ApiException(0, 'Cannot reach the server. Check your connection.');
+      throw ApiException(0, 'Cannot reach the server. Check your connection.', code: ApiException.network);
     }
     final body = res.body.isEmpty ? null : jsonDecode(utf8.decode(res.bodyBytes));
     if (res.statusCode >= 200 && res.statusCode < 300) return body;

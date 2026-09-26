@@ -22,10 +22,13 @@ class AppUser {
     this.email,
     this.phone,
     this.phoneVerified = false,
+    this.locale = 'en',
   });
 
   final String id;
   final String fullName;
+  /// Language for notifications and SMS ('en' or 'ar').
+  final String locale;
   final UserRole role;
   final String? email;
   final String? phone;
@@ -40,6 +43,7 @@ class AppUser {
         email: j['email'],
         phone: j['phone'],
         phoneVerified: j['phoneVerifiedAt'] != null,
+        locale: j['locale'] ?? 'en',
       );
 }
 

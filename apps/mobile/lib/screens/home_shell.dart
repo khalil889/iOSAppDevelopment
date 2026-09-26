@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/session.dart';
+import '../l10n/l10n.dart';
 import 'guide/guide_dashboard_screen.dart';
 import 'shared/account_screen.dart';
 import 'shared/assistant_screen.dart';
@@ -22,18 +23,19 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<Session>();
+    final l10n = context.l10n;
 
     final tabs = session.isGuide
-        ? const [
-            (Icons.dashboard_outlined, Icons.dashboard, 'Dashboard', GuideDashboardScreen()),
-            (Icons.auto_awesome_outlined, Icons.auto_awesome, 'Assistant', AssistantScreen()),
-            (Icons.person_outline, Icons.person, 'Account', AccountScreen()),
+        ? [
+            (Icons.dashboard_outlined, Icons.dashboard, l10n.tabDashboard, const GuideDashboardScreen()),
+            (Icons.auto_awesome_outlined, Icons.auto_awesome, l10n.tabAssistant, const AssistantScreen()),
+            (Icons.person_outline, Icons.person, l10n.tabAccount, const AccountScreen()),
           ]
         : [
-            (Icons.explore_outlined, Icons.explore, 'Explore', const ExploreScreen()),
-            (Icons.luggage_outlined, Icons.luggage, 'Trips', const TripsScreen()),
-            (Icons.auto_awesome_outlined, Icons.auto_awesome, 'Assistant', const AssistantScreen()),
-            (Icons.person_outline, Icons.person, 'Account', const AccountScreen()),
+            (Icons.explore_outlined, Icons.explore, l10n.tabExplore, const ExploreScreen()),
+            (Icons.luggage_outlined, Icons.luggage, l10n.tabTrips, const TripsScreen()),
+            (Icons.auto_awesome_outlined, Icons.auto_awesome, l10n.tabAssistant, const AssistantScreen()),
+            (Icons.person_outline, Icons.person, l10n.tabAccount, const AccountScreen()),
           ];
     final index = _index.clamp(0, tabs.length - 1);
 
