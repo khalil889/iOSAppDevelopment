@@ -75,4 +75,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ratingNew => 'New';
+
+  @override
+  String get bookingStatusPendingPayment => 'Awaiting payment';
+
+  @override
+  String get bookingStatusConfirmed => 'Confirmed';
+
+  @override
+  String get bookingStatusInProgress => 'Live now';
+
+  @override
+  String get bookingStatusCompleted => 'Completed';
+
+  @override
+  String get bookingStatusCancelled => 'Cancelled';
+
+  @override
+  String get categoryHeritage => 'Heritage';
+
+  @override
+  String get categoryMuseum => 'Museum';
+
+  @override
+  String get categoryNature => 'Nature';
+
+  @override
+  String get categoryReligious => 'Religious';
+
+  @override
+  String get categoryCity => 'City';
+
+  @override
+  String get categoryAdventure => 'Adventure';
+
+  @override
+  String get categoryFood => 'Food';
+
+  @override
+  String get escrowPending => 'Pending';
+
+  @override
+  String get escrowHeld => 'Held in escrow';
+
+  @override
+  String get escrowSettling => 'Settling';
+
+  @override
+  String get escrowReleased => 'Released to guide';
+
+  @override
+  String get escrowRefunded => 'Refunded';
+
+  @override
+  String get escrowPartiallyRefunded => 'Partially refunded';
+
+  @override
+  String get escrowDisputed => 'Disputed';
+
+  @override
+  String get escrowFailed => 'Failed';
+
+  @override
+  String get liveBadge => 'LIVE';
 }

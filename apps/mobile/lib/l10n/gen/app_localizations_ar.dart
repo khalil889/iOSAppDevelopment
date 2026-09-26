@@ -74,4 +74,67 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get ratingNew => 'جديد';
+
+  @override
+  String get bookingStatusPendingPayment => 'بانتظار الدفع';
+
+  @override
+  String get bookingStatusConfirmed => 'مؤكد';
+
+  @override
+  String get bookingStatusInProgress => 'جارية الآن';
+
+  @override
+  String get bookingStatusCompleted => 'مكتملة';
+
+  @override
+  String get bookingStatusCancelled => 'ملغاة';
+
+  @override
+  String get categoryHeritage => 'تراث';
+
+  @override
+  String get categoryMuseum => 'متحف';
+
+  @override
+  String get categoryNature => 'طبيعة';
+
+  @override
+  String get categoryReligious => 'ديني';
+
+  @override
+  String get categoryCity => 'مدينة';
+
+  @override
+  String get categoryAdventure => 'مغامرة';
+
+  @override
+  String get categoryFood => 'طعام';
+
+  @override
+  String get escrowPending => 'قيد الانتظار';
+
+  @override
+  String get escrowHeld => 'محجوز في الضمان';
+
+  @override
+  String get escrowSettling => 'قيد التسوية';
+
+  @override
+  String get escrowReleased => 'حُوّل إلى المرشد';
+
+  @override
+  String get escrowRefunded => 'مُسترد';
+
+  @override
+  String get escrowPartiallyRefunded => 'مُسترد جزئيًا';
+
+  @override
+  String get escrowDisputed => 'متنازع عليه';
+
+  @override
+  String get escrowFailed => 'فشل';
+
+  @override
+  String get liveBadge => 'مباشر';
 }

@@ -223,6 +223,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New'**
   String get ratingNew;
+
+  /// No description provided for @bookingStatusPendingPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting payment'**
+  String get bookingStatusPendingPayment;
+
+  /// No description provided for @bookingStatusConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get bookingStatusConfirmed;
+
+  /// No description provided for @bookingStatusInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Live now'**
+  String get bookingStatusInProgress;
+
+  /// No description provided for @bookingStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get bookingStatusCompleted;
+
+  /// No description provided for @bookingStatusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get bookingStatusCancelled;
+
+  /// No description provided for @categoryHeritage.
+  ///
+  /// In en, this message translates to:
+  /// **'Heritage'**
+  String get categoryHeritage;
+
+  /// No description provided for @categoryMuseum.
+  ///
+  /// In en, this message translates to:
+  /// **'Museum'**
+  String get categoryMuseum;
+
+  /// No description provided for @categoryNature.
+  ///
+  /// In en, this message translates to:
+  /// **'Nature'**
+  String get categoryNature;
+
+  /// No description provided for @categoryReligious.
+  ///
+  /// In en, this message translates to:
+  /// **'Religious'**
+  String get categoryReligious;
+
+  /// No description provided for @categoryCity.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get categoryCity;
+
+  /// No description provided for @categoryAdventure.
+  ///
+  /// In en, this message translates to:
+  /// **'Adventure'**
+  String get categoryAdventure;
+
+  /// No description provided for @categoryFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Food'**
+  String get categoryFood;
+
+  /// No description provided for @escrowPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get escrowPending;
+
+  /// No description provided for @escrowHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'Held in escrow'**
+  String get escrowHeld;
+
+  /// No description provided for @escrowSettling.
+  ///
+  /// In en, this message translates to:
+  /// **'Settling'**
+  String get escrowSettling;
+
+  /// No description provided for @escrowReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Released to guide'**
+  String get escrowReleased;
+
+  /// No description provided for @escrowRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get escrowRefunded;
+
+  /// No description provided for @escrowPartiallyRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Partially refunded'**
+  String get escrowPartiallyRefunded;
+
+  /// No description provided for @escrowDisputed.
+  ///
+  /// In en, this message translates to:
+  /// **'Disputed'**
+  String get escrowDisputed;
+
+  /// No description provided for @escrowFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get escrowFailed;
+
+  /// No description provided for @liveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get liveBadge;
 }
 
 class _AppLocalizationsDelegate
