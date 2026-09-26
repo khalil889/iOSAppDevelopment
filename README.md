@@ -35,7 +35,7 @@ flutter run --dart-define=API_URL=http://10.0.2.2:3000/api   # Android emulator
 
 | Role | Login | Password | What to try |
 | --- | --- | --- | --- |
-| Admin | admin@tourguide.test | `Admin123!` | Approve Khalid, reject Layla; acknowledge the open SOS; resolve the open dispute |
+| Admin | admin@tourguide.test | `Admin123!` | Overview dashboard; run a SAR payout (Noura is skipped: no bank account); approve Khalid (Layla needs an identity check first); acknowledge the open SOS; resolve the open dispute |
 | Tourist | sara@example.com | `Password123!` | Live tour + SOS, review the AlUla tour, upcoming booking, inbox |
 | Guide | faisal@guides.test | `Password123!` | Dashboard, availability (has a day off next week), live tour → *Complete tour* |
 
@@ -92,15 +92,15 @@ has a unit test next to it:
 | --- | --- |
 | Auth | `PATCH /auth/me` (language) · `POST /auth/register` (email + password, sends phone OTP) · `POST /auth/login` · `POST /auth/otp/request` · `POST /auth/otp/verify` (verifies phone, signs in) · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/logout-all` · `GET /auth/me` |
 | Explore | `GET /countries` · `GET /cities` · `GET /sites?q&countryId&cityId&category&lat&lng&radiusKm` · `GET /sites/:id` |
-| Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/license-upload` · `POST /guides/me/application` · `GET /guides/me/dashboard` |
+| Guides | `GET /guides?q&countryId&cityId&siteId&language&minRating&maxPriceMinor&date&lat&lng&radiusKm&sort` (verified only) · `GET /guides/:id` · `GET/PATCH /guides/me` · `POST /guides/me/license-upload` · `POST /guides/me/application` · `GET /guides/me/dashboard` · `POST /guides/me/identity` · `GET /guides/me/earnings` · `GET/PUT /guides/me/payout-account` |
 | Availability | `GET /availability/slots?packageId&date` · `GET/PUT /guides/me/availability` |
-| Packages | `GET /packages/:id` · `GET /packages/mine` · `POST /packages` · `PATCH /packages/:id` |
+| Packages | `GET /packages/:id` · `GET /packages/mine` · `POST /packages` · `PATCH /packages/:id` · `POST /packages/photo-upload` |
 | Bookings | `POST /bookings/quote` · `POST /bookings` · `GET /bookings` · `GET /bookings/:id` · `POST /bookings/:id/pay` · `/pay/confirm` · `/start` · `/complete` · `/cancel` · `/sos` |
 | Payments | `GET /payments/config` (provider + publishable key) · `POST /payments/webhooks/moyasar` |
 | Reviews / disputes | `POST /bookings/:id/review` · `POST /bookings/:id/disputes` · `GET /disputes/mine` |
 | Assistant | `POST /assistant/chat` |
 | Notifications | `POST /me/devices` · `POST /me/devices/unregister` · `GET /me/notifications` · `POST /me/notifications/read` |
-| Admin | `GET /admin/guides?status` · `GET /admin/guides/counts` · `GET /admin/guides/:id` · `POST /admin/guides/:id/approve` · `/reject` · `/suspend` · `GET /admin/disputes` · `GET /admin/disputes/:id` · `POST /admin/disputes/:id/resolve` · `GET /admin/sos?status` · `GET /admin/sos/counts` · `POST /admin/sos/:id/acknowledge` · `POST /admin/payments/release-due` |
+| Admin | `GET /admin/guides?status` · `GET /admin/guides/counts` · `GET /admin/guides/:id` · `POST /admin/guides/:id/approve` · `/reject` · `/suspend` · `GET /admin/disputes` · `GET /admin/disputes/:id` · `POST /admin/disputes/:id/resolve` · `GET /admin/sos?status` · `GET /admin/sos/counts` · `POST /admin/sos/:id/acknowledge` · `POST /admin/payments/release-due` · `GET /admin/analytics?days&currency` · `GET /admin/payouts/owed` · `GET/POST /admin/payouts/runs` · `GET /admin/payouts/runs/:id` · `/export` (CSV) · `POST /admin/payouts/:id/paid` · `/failed` |
 
 Rule violations come back with a stable error code, for example
 `{"statusCode":409,"error":"SLOT_UNAVAILABLE","message":"..."}`.
@@ -272,6 +272,31 @@ and an iOS app. Then:
 The mobile app has no remaining stubs. Its payment sheet, GPS and push all use
 real SDKs, with safe fallbacks when they aren't configured.
 
+## Guide tours, payouts, identity and analytics
+
+- **Guides manage their tours** in the app (*Dashboard → My tours*). They
+  can write in English and Arabic, choose cities from their profile and sites
+  in the tour's city, set price and duration, add up to six photos (signed
+  uploads) and pause a tour.
+- **Identity checks.** An admin can approve a guide only after the guide
+  passes an ID and selfie check. With `IDENTITY_PROVIDER=sumsub` the app opens
+  Sumsub's hosted WebSDK (`POST /guides/me/identity`). Sumsub then reports the
+  result to `/api/identity/webhooks/sumsub`, signed with an HMAC of the raw
+  body. The stub provider approves straight away.
+- **Payouts.**
+  - Guides add an IBAN under *Earnings & payouts*. It is validated, encrypted
+    with `PAYOUT_ENC_KEY` and shown only masked.
+  - When escrow is released, the guide's share is owed. On the admin
+    *Payouts* page you create a run per currency and download the bank CSV
+    (full IBANs, admins only).
+  - After the transfers, mark each payout paid (the guide is notified) or
+    failed (its payments go back into the next run).
+  - A payment can't be in two payouts.
+- **Analytics.** The admin *Overview* shows GMV, platform revenue, bookings and
+  conversion against the previous period, refunds, escrow, a daily series,
+  top cities and guides, and the guide funnel. Figures are per currency, with
+  no FX conversion.
+
 ## Arabic and right-to-left
 
 Both apps run in English or Arabic, with fully mirrored layouts.
@@ -364,8 +389,8 @@ and OTP echo.
 ## Tests
 
 ```bash
-npm run api:test                     # 148 unit tests: business rules, availability, all providers (mocked HTTP)
-npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications, sessions, races, Arabic
+npm run api:test                     # 165 unit tests: business rules, availability, all providers (mocked HTTP)
+npm run test:e2e -w services/api     # API against a seeded database: search, slots, booking rules, notifications, sessions, races, Arabic, tours, payouts, identity, analytics
 cd apps/mobile && flutter test       # models, booking slots, payment sheet, license upload, SOS, inbox, Arabic/RTL
 cd apps/admin && npx tsc --noEmit    # type-check the admin portal
 ```
@@ -377,7 +402,8 @@ type-check and build; Flutter analyze and test.
 
 ## Not built yet
 
-A real KYC provider, automated guide payouts and payout onboarding,
+Automatic bank transfers (payout runs produce a CSV for the bank portal;
+Moyasar/bank payout APIs can plug in later), automated license registry checks,
 multi-currency price filtering (`maxPriceMinor` and price sort compare raw
 minor units, so filter by city or country too), and PDF
 uploads from the app (the API already accepts PDFs; the app currently sends
