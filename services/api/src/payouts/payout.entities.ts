@@ -41,6 +41,13 @@ export class PayoutRun extends BaseEntity {
 
   @Column({ type: 'int' })
   payoutCount: number;
+
+  /** Bank file downloads: a second upload to the bank would pay twice. */
+  @Column({ type: 'int', default: 0 })
+  exportCount: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastExportedAt: Date | null;
 }
 
 /** Money sent (or to be sent) to one guide in one run. */

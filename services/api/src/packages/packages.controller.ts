@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -23,6 +24,7 @@ export class PackagesController {
 
   @ApiBearerAuth()
   @Roles(UserRole.GUIDE)
+  @Throttle({ default: { limit: 40, ttl: 3_600_000 } })
   @Post('photo-upload')
   photoUpload(@CurrentUser() user: AuthUser, @Body() dto: PackagePhotoUploadDto) {
     return this.packages.createPhotoUpload(user.id, dto);

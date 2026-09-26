@@ -36,6 +36,8 @@ export interface IdentityWebhookEvent {
   applicantId: string | null;
   /** null for events that don't change the status. */
   outcome: IdentityOutcome | null;
+  /** When the provider created the event; older events than the last applied one are ignored. */
+  occurredAt: Date | null;
 }
 
 export interface IdentityProvider {

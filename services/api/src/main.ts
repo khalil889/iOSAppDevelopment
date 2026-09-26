@@ -27,6 +27,9 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   if (config.get<boolean>('trustProxy')) app.set('trust proxy', 1);
+  else if (cfg.isProduction) {
+    new Logger('Bootstrap').warn('TRUST_PROXY is off: behind a load balancer every client shares one rate-limit bucket');
+  }
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   // JSON bodies are small; file uploads go straight to storage via signed URLs.
   app.useBodyParser('json', { limit: '256kb' });

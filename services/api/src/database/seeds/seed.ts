@@ -227,14 +227,17 @@ async function run() {
     ['faisal', 'Faisal Al-Harbi', 'SA0380000000608010167519', 'Al Rajhi Bank'],
     ['mona', 'Mona Hassan', 'EG380019000500000000263180002', 'Banque Misr'],
   ]) {
+    const guideId = guides.get(key)!.id;
     await ds.getRepository(PayoutAccount).insert({
-      guideId: guides.get(key)!.id,
+      guideId,
       holderName,
       bankName,
-      ibanSealed: box.seal(iban),
+      ibanSealed: box.seal(iban, guideId),
       ibanMasked: maskIban(iban),
     });
   }
+  // Past the 24h hold that applies to new or changed bank details.
+  await ds.query(`UPDATE payout_accounts SET "createdAt" = now() - interval '30 days', "updatedAt" = now() - interval '30 days'`);
 
   // --- Bookings, payments, reviews -----------------------------------------
   const bookingRepo = ds.getRepository(Booking);

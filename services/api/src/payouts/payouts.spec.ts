@@ -24,23 +24,29 @@ describe('SecretBox', () => {
 
   it('round-trips and never stores the plaintext', () => {
     const box = new SecretBox(key);
-    const sealed = box.seal('SA0380000000608010167519');
+    const sealed = box.seal('SA0380000000608010167519', 'guide-1');
     expect(sealed).not.toContain('6080');
-    expect(box.open(sealed)).toBe('SA0380000000608010167519');
-    expect(box.seal('x')).not.toBe(box.seal('x')); // random IV
+    expect(box.open(sealed, 'guide-1')).toBe('SA0380000000608010167519');
+    expect(box.seal('x', 'g')).not.toBe(box.seal('x', 'g')); // random IV
+    expect(() => box.open(sealed, 'guide-2')).toThrow(); // bound to its row
   });
 
   it('rejects tampering and the wrong key', () => {
-    const sealed = new SecretBox(key).seal('secret');
+    const sealed = new SecretBox(key).seal('secret', 'g');
     const parts = sealed.split(':');
     parts[3] = Buffer.from('tampered').toString('base64');
-    expect(() => new SecretBox(key).open(parts.join(':'))).toThrow();
-    expect(() => new SecretBox(Buffer.alloc(32, 8).toString('base64')).open(sealed)).toThrow();
+    expect(() => new SecretBox(key).open(parts.join(':'), 'g')).toThrow();
+    const shortTag = sealed.split(':');
+    shortTag[2] = Buffer.from(shortTag[2], 'base64').subarray(0, 4).toString('base64');
+    expect(() => new SecretBox(key).open(shortTag.join(':'), 'g')).toThrow(/Malformed/);
+    expect(() => new SecretBox(Buffer.alloc(32, 8).toString('base64')).open(sealed, 'g')).toThrow();
   });
 
   it('knows a strong key', () => {
     expect(SecretBox.isStrongKey(key)).toBe(true);
     expect(SecretBox.isStrongKey('short')).toBe(false);
+    expect(SecretBox.isStrongKey('change-me-change-me-change-me-change-me-abc')).toBe(false);
+    expect(SecretBox.isStrongKey('a'.repeat(64))).toBe(true);
   });
 });
 

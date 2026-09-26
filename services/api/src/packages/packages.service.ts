@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { DataSource, In, Repository } from 'typeorm';
@@ -72,10 +72,15 @@ export class PackagesService {
     const pkg = await this.packages.findOne({ where: { id }, relations: { sites: true } });
     if (!pkg) throw new NotFoundException('Package not found');
     if (pkg.guideId !== guide.id) throw new ForbiddenException('Not your package');
-    const { siteIds, photoKeys, ...fields } = dto;
+    // PartialType lets null through validation; only the Arabic texts may be cleared.
+    const cleared = Object.entries(dto).filter(([k, v]) => v === null && !['titleAr', 'descriptionAr'].includes(k));
+    if (cleared.length) throw new BadRequestException(`${cleared.map(([k]) => k).join(', ')} cannot be empty`);
+    const { siteIds, photoKeys, cityId, ...fields } = dto;
     Object.assign(pkg, fields);
-    if (dto.cityId && dto.cityId !== pkg.cityId) {
-      const city = await this.servedCity(guide, dto.cityId);
+    if (cityId && cityId !== pkg.cityId) {
+      const city = await this.servedCity(guide, cityId);
+      pkg.cityId = city.id;
+      pkg.city = city;
       pkg.currency = city.country.currency;
       // Sites belong to a city: keep only the ones in the new city unless new ones are given.
       if (!siteIds) pkg.sites = pkg.sites.filter((s) => s.cityId === city.id);

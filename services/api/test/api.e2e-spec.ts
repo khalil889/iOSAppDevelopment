@@ -468,7 +468,7 @@ describe('analytics', () => {
     const res = await call('GET', '/admin/analytics?days=30&currency=SAR', undefined, admin);
     expect(res.status).toBe(200);
     expect(res.body.range).toMatchObject({ days: 30, currency: 'SAR' });
-    expect(res.body.daily).toHaveLength(31);
+    expect(res.body.daily).toHaveLength(30); // whole Riyadh days, today included
     expect(res.body.bookings.created).toBeGreaterThan(0);
     expect(res.body.money.gmvMinor).toBeGreaterThan(0);
     expect(res.body.topCities[0]).toHaveProperty('nameAr');
@@ -476,5 +476,51 @@ describe('analytics', () => {
     expect(res.body.guideFunnel.APPROVED).toBeGreaterThan(0);
     expect((await call('GET', '/admin/analytics?days=13', undefined, admin)).status).toBe(400);
     expect((await call('GET', '/admin/analytics', undefined, await login('faisal@guides.test'))).status).toBe(403);
+  });
+});
+
+describe('review fixes', () => {
+  const adminToken = async () =>
+    (await call('POST', '/auth/login', { email: 'admin@tourguide.test', password: 'Admin123!' })).body.accessToken;
+
+  it("rechecks the city and currency when a tour's city changes, and rejects nulls", async () => {
+    const guide = await login('faisal@guides.test');
+    const cairo = (await call('GET', '/cities')).body.find((c: { name: string }) => c.name === 'Cairo');
+    const [tour] = (await call('GET', '/packages/mine', undefined, guide)).body;
+    expect((await call('PATCH', `/packages/${tour.id}`, { cityId: cairo.id }, guide)).body.error).toBe('CITY_NOT_SERVED');
+    expect((await call('PATCH', `/packages/${tour.id}`, { title: null }, guide)).status).toBe(400);
+    const after = (await call('GET', '/packages/mine', undefined, guide)).body.find((p: { id: string }) => p.id === tour.id);
+    expect(after).toMatchObject({ cityId: tour.cityId, currency: 'SAR', title: tour.title });
+  });
+
+  it('alerts the guide and holds payouts for 24h after bank details change', async () => {
+    const guide = await login('mona@guides.test');
+    const changed = await call('PUT', '/guides/me/payout-account', { holderName: 'Mona Hassan', iban: 'GB82 WEST 1234 5698 7654 32' }, guide);
+    expect(changed.body.ibanMasked).toBe('GB82 •••• 5432');
+    const inbox = await call('GET', '/me/notifications', undefined, guide);
+    expect(inbox.body.items[0].type).toBe('PAYOUT_ACCOUNT_CHANGED');
+
+    const run = await call('POST', '/admin/payouts/runs', { currency: 'EGP' }, await adminToken());
+    expect(run.body.error).toBe('NOTHING_TO_PAY'); // Mona's only account is in its cooling-off period
+  });
+
+  it('can reverse a paid payout when the bank returns it, and counts exports', async () => {
+    const admin = await adminToken();
+    const runs = (await call('GET', '/admin/payouts/runs', undefined, admin)).body;
+    const sarRun = runs.find((r: { currency: string }) => r.currency === 'SAR');
+    const detail = await call('GET', `/admin/payouts/runs/${sarRun.id}`, undefined, admin);
+    const paid = detail.body.payouts.find((p: { status: string }) => p.status === 'PAID');
+    expect(detail.body.exportCount).toBeGreaterThanOrEqual(1);
+
+    const reversed = await call('POST', `/admin/payouts/${paid.id}/failed`, { reason: 'Returned by bank: account closed' }, admin);
+    expect(reversed.body).toMatchObject({ status: 'FAILED' });
+    expect(reversed.body.note).toMatch(/was: RJHI-7781/);
+    const owed = await call('GET', '/admin/payouts/owed', undefined, admin);
+    expect(owed.body.some((r: { guideName: string; currency: string }) => r.guideName === 'Faisal Al-Harbi' && r.currency === 'SAR')).toBe(true);
+    expect((await call('POST', '/admin/payouts/00000000-0000-4000-8000-000000000000/paid', { reference: 'x-123' }, admin)).status).toBe(404);
+
+    const guide = await login('faisal@guides.test');
+    const earnings = await call('GET', '/guides/me/earnings', undefined, guide);
+    expect(earnings.body.payouts[0].settledById).toBeUndefined();
   });
 });

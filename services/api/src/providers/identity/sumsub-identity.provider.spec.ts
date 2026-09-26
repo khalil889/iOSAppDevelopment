@@ -83,7 +83,11 @@ describe('SumsubIdentityProvider', () => {
         externalUserId: 'guide-1',
         applicantId: 'app-1',
         outcome: { status: 'retry', labels: ['SELFIE_MISMATCH'], comment: 'Retake the selfie' },
+        occurredAt: null,
       });
+      const timed = (o: object) => provider.parseWebhook(Buffer.from(JSON.stringify({ type: 'applicantPending', externalUserId: 'g', ...o })))?.occurredAt;
+      expect(timed({ createdAtMs: '1790000000000' })?.getTime()).toBe(1_790_000_000_000);
+      expect(timed({ createdAt: '2026-09-26 10:00:00+0000' })?.toISOString()).toBe('2026-09-26T10:00:00.000Z');
       const parse = (o: object) => provider.parseWebhook(Buffer.from(JSON.stringify({ externalUserId: 'g', ...o })))?.outcome;
       expect(parse({ type: 'applicantReviewed', reviewResult: { reviewAnswer: 'GREEN' } })).toEqual({ status: 'approved' });
       expect(parse({ type: 'applicantReviewed', reviewResult: { reviewAnswer: 'RED', reviewRejectType: 'FINAL' } })?.status).toBe('rejected');

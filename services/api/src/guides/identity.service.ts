@@ -50,7 +50,7 @@ export class IdentityService {
       lang: currentLang(),
     });
     if (res.immediate) {
-      await this.apply(guide.id, null, res.immediate);
+      await this.apply(guide.id, null, res.immediate, new Date());
       return { status: STATUS[res.immediate.status], url: null };
     }
     return { status: guide.identityStatus, url: res.url ?? null };
@@ -61,15 +61,20 @@ export class IdentityService {
     const event = this.provider.parseWebhook(rawBody);
     if (!event) throw new BadRequestException('Unrecognised webhook');
     if (!event.outcome || !UUID.test(event.externalUserId)) return { ok: true, ignored: event.type };
-    const applied = await this.apply(event.externalUserId, event.applicantId, event.outcome);
+    const applied = await this.apply(event.externalUserId, event.applicantId, event.outcome, event.occurredAt ?? new Date());
     return { ok: true, applied };
   }
 
-  private async apply(guideId: string, applicantId: string | null, outcome: IdentityOutcome): Promise<boolean> {
+  private async apply(guideId: string, applicantId: string | null, outcome: IdentityOutcome, at: Date): Promise<boolean> {
     const repo = this.db.getRepository(Guide);
     const guide = await repo.findOne({ where: { id: guideId } });
     if (!guide) {
       this.logger.warn(`Identity result for unknown guide ${guideId}`);
+      return false;
+    }
+    // Webhooks can be retried or arrive out of order: an older event never overrides a newer one.
+    if (guide.identityCheckedAt && at < guide.identityCheckedAt) {
+      this.logger.warn(`Ignoring stale identity event for guide ${guideId}`);
       return false;
     }
     const next = STATUS[outcome.status];
@@ -81,7 +86,7 @@ export class IdentityService {
       {
         identityStatus: next,
         identityApplicantId: applicantId ?? guide.identityApplicantId,
-        identityCheckedAt: new Date(),
+        identityCheckedAt: at,
         identityReview: outcome.labels || outcome.comment ? { labels: outcome.labels ?? [], comment: outcome.comment ?? null } : null,
       },
     );

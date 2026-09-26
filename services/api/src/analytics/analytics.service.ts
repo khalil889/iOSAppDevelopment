@@ -14,8 +14,9 @@ export class AnalyticsService {
   constructor(private readonly db: DataSource) {}
 
   async overview(q: AnalyticsQuery, now = new Date()) {
+    // Whole Riyadh days (today included) so totals match the daily series.
     const to = now;
-    const from = new Date(now.getTime() - q.days * 86_400_000);
+    const from = riyadhMidnight(new Date(now.getTime() - (q.days - 1) * 86_400_000));
     const prevFrom = new Date(from.getTime() - q.days * 86_400_000);
     const params = [from, to, q.currency];
 
@@ -48,14 +49,18 @@ export class AnalyticsService {
                date_trunc('day', $1::timestamptz AT TIME ZONE 'Asia/Riyadh'),
                date_trunc('day', $2::timestamptz AT TIME ZONE 'Asia/Riyadh'),
                interval '1 day') AS day
+           ),
+           b AS (
+             SELECT date_trunc('day', "createdAt" AT TIME ZONE 'Asia/Riyadh') AS day, COUNT(*) AS n
+               FROM bookings WHERE "createdAt" >= $1 AND "createdAt" < $2 GROUP BY 1
+           ),
+           p AS (
+             SELECT date_trunc('day', "heldAt" AT TIME ZONE 'Asia/Riyadh') AS day, SUM("amountMinor") AS gmv
+               FROM payments WHERE currency = $3 AND "heldAt" >= $1 AND "heldAt" < $2 GROUP BY 1
            )
-           SELECT to_char(d.day, 'YYYY-MM-DD') AS date,
-                  (SELECT COUNT(*) FROM bookings b
-                    WHERE date_trunc('day', b."createdAt" AT TIME ZONE 'Asia/Riyadh') = d.day)::int AS bookings,
-                  (SELECT COALESCE(SUM(p."amountMinor"), 0) FROM payments p
-                    WHERE p.currency = $3 AND p."heldAt" IS NOT NULL
-                      AND date_trunc('day', p."heldAt" AT TIME ZONE 'Asia/Riyadh') = d.day)::bigint AS "gmvMinor"
-             FROM days d ORDER BY d.day`,
+           SELECT to_char(d.day, 'YYYY-MM-DD') AS date, COALESCE(b.n, 0)::int AS bookings, COALESCE(p.gmv, 0)::bigint AS "gmvMinor"
+             FROM days d LEFT JOIN b ON b.day = d.day LEFT JOIN p ON p.day = d.day
+            ORDER BY d.day`,
           params,
         ),
         this.db.query(
@@ -104,12 +109,14 @@ export class AnalyticsService {
   }
 
   private async bookingCounts(from: Date, to: Date) {
+    // "paid" counts bookings whose payment was ever captured, even if later cancelled/refunded.
     const [r] = await this.db.query(
       `SELECT COUNT(*)::int AS created,
-              COUNT(*) FILTER (WHERE status IN ('CONFIRMED', 'IN_PROGRESS', 'COMPLETED'))::int AS paid,
-              COUNT(*) FILTER (WHERE status = 'COMPLETED')::int AS completed,
-              COUNT(*) FILTER (WHERE status = 'CANCELLED')::int AS cancelled
-         FROM bookings WHERE "createdAt" >= $1 AND "createdAt" < $2`,
+              COUNT(*) FILTER (WHERE p."heldAt" IS NOT NULL)::int AS paid,
+              COUNT(*) FILTER (WHERE b.status = 'COMPLETED')::int AS completed,
+              COUNT(*) FILTER (WHERE b.status = 'CANCELLED')::int AS cancelled
+         FROM bookings b LEFT JOIN payments p ON p."bookingId" = b.id
+        WHERE b."createdAt" >= $1 AND b."createdAt" < $2`,
       [from, to],
     );
     const created = n(r?.created);
@@ -144,4 +151,11 @@ export class AnalyticsService {
       inEscrowMinor: n(r?.inEscrow),
     };
   }
+}
+
+/** Start of the Asia/Riyadh (UTC+3, no DST) day containing `d`. */
+export function riyadhMidnight(d: Date): Date {
+  const shifted = new Date(d.getTime() + 3 * 3_600_000);
+  shifted.setUTCHours(0, 0, 0, 0);
+  return new Date(shifted.getTime() - 3 * 3_600_000);
 }

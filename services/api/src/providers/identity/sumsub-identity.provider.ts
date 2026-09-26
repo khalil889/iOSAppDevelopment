@@ -80,6 +80,8 @@ export class SumsubIdentityProvider implements IdentityProvider {
     let body: {
       type?: string;
       externalUserId?: string;
+      createdAtMs?: string | number;
+      createdAt?: string;
       applicantId?: string;
       reviewResult?: { reviewAnswer?: string; reviewRejectType?: string; rejectLabels?: string[]; moderationComment?: string };
     };
@@ -94,6 +96,7 @@ export class SumsubIdentityProvider implements IdentityProvider {
       externalUserId: body.externalUserId,
       applicantId: body.applicantId ?? null,
       outcome: outcomeFor(body.type, body.reviewResult),
+      occurredAt: eventTime(body.createdAtMs, body.createdAt),
     };
   }
 
@@ -154,4 +157,12 @@ function outcomeFor(
     default:
       return null;
   }
+}
+
+/** Sumsub sends createdAtMs (epoch ms) and createdAt ("2021-06-15 16:33:21+0000"). */
+function eventTime(ms?: string | number, text?: string): Date | null {
+  const fromMs = ms !== undefined ? new Date(Number(ms)) : null;
+  if (fromMs && !Number.isNaN(fromMs.getTime())) return fromMs;
+  const fromText = text ? new Date(text.replace(' ', 'T').replace(/([+-]\d{2})(\d{2})$/, '$1:$2')) : null;
+  return fromText && !Number.isNaN(fromText.getTime()) ? fromText : null;
 }

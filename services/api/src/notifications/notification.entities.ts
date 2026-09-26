@@ -45,6 +45,7 @@ export enum NotificationType {
   IDENTITY_VERIFIED = 'IDENTITY_VERIFIED',
   IDENTITY_NEEDS_ACTION = 'IDENTITY_NEEDS_ACTION',
   PAYOUT_SENT = 'PAYOUT_SENT',
+  PAYOUT_ACCOUNT_CHANGED = 'PAYOUT_ACCOUNT_CHANGED',
 }
 
 /** In-app inbox; every push is also stored here so nothing is lost if push is off. */

@@ -47,7 +47,7 @@ export class CreatePackageDto {
   @ApiProperty() @IsInt() @Min(1) @Max(50)
   maxGroupSize: number;
 
-  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @Matches(/^[a-z]{2}$/, { each: true })
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(20) @Matches(/^[a-z]{2}$/, { each: true })
   languages?: string[];
 
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(20) @IsUUID('4', { each: true })
@@ -74,6 +74,7 @@ export class PackagePhotoUploadDto {
   sizeBytes: number;
 }
 
+/** Optional on update, but never null for NOT NULL columns. */
 export class UpdatePackageDto extends PartialType(CreatePackageDto) {
   @ApiPropertyOptional() @IsOptional() @IsBoolean()
   isActive?: boolean;
